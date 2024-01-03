@@ -14,8 +14,8 @@ mySession = ps.Session()
 packagesInstalled = mySession.packages()
 omniscapeVersion = packagesInstalled.Version[packagesInstalled.Name == "omniscape"]
 
-if pd.unique(omniscapeVersion)[0] != "1.1.0":
-    sys.exit("The omniscapeImpact add-on package version 1.0.0 requires the omniscape base package version 1.1.0.")
+if pd.unique(omniscapeVersion)[0] != "1.1.1":
+    sys.exit("The omniscapeImpact add-on package version 1.0.1 requires the omniscape base package version 1.1.1.")
 
 
 
