@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<package name="omniscapeImpact" displayName="Calculates changes in connectivity categories from a baseline" isAddOn="True" extendsPackage="omniscape" version="1.0.0">
+<package name="omniscapeImpact" displayName="Calculates changes in connectivity categories from a baseline" isAddOn="True" extendsPackage="omniscape" url="https://apexrms.github.io/omniscape/tutorials/omniscapeImpact" version="1.0.2">
   <transformers>
     <transformer name="omniscapeImpactTransformer" displayName="3 - Connectivity Impact Assessment" isPrimary="True" isPipelineBased="True" transformerSpecificOutput="False" isRunnable="True" programName="python" programArguments="omniscapeImpactTransformer.py" condaEnv="omniscapeEnvironment.yml">
       <pipeline>
@@ -55,7 +55,7 @@
                 <column name="ScenarioID" dataType="Integer" isCompositeIndex="True" />
                 <column name="movementTypesID" displayName="Connectivity category" dataType="Integer" validationType="Datasheet" formula1="omniscape_movementTypes" allowDbNull="False" />
                 <column name="amountAreaDifference" displayName="Area difference" dataType="Double" validationType="Decimal" validationCondition="None" />
-                <column name="percentCoverDifference" displayName="Percent cover difference" dataType="Double" validationType="Decimal" validationCondition="None" />
+                <column name="percentCoverDifference" displayName="Proportion difference" dataType="Double" validationType="Decimal" validationCondition="None" />
               </columns>
             </datasheet>
           </datasheets>
@@ -69,7 +69,7 @@
                 <column name="movementTypesIDfrom" displayName="From" dataType="String" />
                 <column name="movementTypesIDto" displayName="To" dataType="String" />
                 <column name="amoutAreaChange" displayName="Area change" dataType="Double" validationType="Decimal" validationCondition="None" />
-                <column name="percentCoverChange" displayName="Percent cover change" dataType="Double" validationType="Decimal" validationCondition="None" />
+                <column name="percentCoverChange" displayName="Proportion change" dataType="Double" validationType="Decimal" validationCondition="None" />
               </columns>
             </datasheet>
           </datasheets>
@@ -111,7 +111,7 @@
     <layout name="corestimeforms_Charts">
       <group name="ImpactAssessment" displayName="Impact Assessment">
         <item name="outputTabularDifferences_amountAreaDifference" displayName="Area difference" dataSheet="outputTabularDifferences" column="amountAreaDifference" filter="movementTypesID" prefixFolderName="False" />
-        <item name="outputTabularDifferences_percentCoverDifference" displayName="Percent cover difference" dataSheet="outputTabularDifferences" column="percentCoverDifference" filter="movementTypesID" prefixFolderName="False" />
+        <item name="outputTabularDifferences_percentCoverDifference" displayName="Proportion difference" dataSheet="outputTabularDifferences" column="percentCoverDifference" filter="movementTypesID" prefixFolderName="False" />
         <item name="outputTabularJaccard_dissimilarity" displayName="Jaccard dissimilarity" dataSheet="outputTabularJaccard" column="dissimilarity" filter="movementTypesID" prefixFolderName="False" />
       </group>
     </layout>
