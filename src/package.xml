@@ -17,8 +17,8 @@
               <columns>
                 <column name="differenceScenariosID" dataType="Integer" isPrimary="True" />
                 <column name="ScenarioID" dataType="Integer" />
-                <column name="Baseline" displayName="Baseline Scenario ID" dataType="Integer" validationType="WholeNumber" validationCondition="None" isOptional="False" />
-                <column name="Alternative" displayName="Alternative Scenario ID" dataType="Integer" validationType="WholeNumber" validationCondition="None" isOptional="False" />
+                <column name="Baseline" displayName="Baseline Scenario ID" dataType="Integer" validationType="WholeNumber" validationCondition="None" isOptional="False" allowDbNull="False" />
+                <column name="Alternative" displayName="Alternative Scenario ID" dataType="Integer" validationType="WholeNumber" validationCondition="None" isOptional="False" allowDbNull="False" />
               </columns>
             </datasheet>
           </datasheets>
