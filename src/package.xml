@@ -1,5 +1,7 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<package name="omniscapeImpact" displayName="Calculates changes in connectivity categories from a baseline" isAddOn="True" extendsPackage="omniscape" url="https://apexrms.github.io/omniscape/tutorials/omniscapeImpact" version="2.0.0">
+<package name="omniscapeImpact" displayName="Calculates changes in connectivity categories from a baseline" version="2.0.0" url="https://apexrms.github.io/omniscape/tutorials/omniscapeImpact">
+
+    <builtFor package = "omniscape" version = "2.1.1"/>
 
   <!--Scenario Datasheets-->
 
