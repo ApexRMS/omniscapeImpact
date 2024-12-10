@@ -14,8 +14,8 @@ mySession = ps.Session()
 packagesInstalled = mySession.packages()
 omniscapeVersion = packagesInstalled.Version[packagesInstalled.Name == "omniscape"]
 
-if pd.unique(omniscapeVersion)[0] != "1.1.2":
-    sys.exit("The omniscapeImpact add-on package version 1.0.2 requires the omniscape base package version 1.1.2.")
+if pd.unique(omniscapeVersion)[0] != "2.1.1":
+    sys.exit("The omniscapeImpact package version 2.0.0 requires the omniscape package version 2.1.1.")
 
 
 
@@ -25,7 +25,7 @@ ps.environment.progress_bar(message="Setting up Scenario", report_type="message"
 
 # Set environment and working directory
 e = ps.environment._environment()
-wrkDir = e.output_directory.item()
+wrkDir = e.data_directory.item()
 
 # Open SyncroSim Library, Project and Scenario
 myLibrary = ps.Library()
@@ -67,29 +67,29 @@ if (len(differenceScenarios.Baseline) == 0) | (len(differenceScenarios.Alternati
 
 # Detect if Parent or Result Scenario IDs
 allScenarios = myProject.scenarios(optional = True)
-baseScenarioTable = allScenarios[allScenarios.ScenarioID == int(differenceScenarios.Baseline[0])]
-altrScenarioTable = allScenarios[allScenarios.ScenarioID == int(differenceScenarios.Alternative[0])]
+baseScenarioTable = allScenarios[allScenarios.ScenarioId == int(differenceScenarios.Baseline[0])]
+altrScenarioTable = allScenarios[allScenarios.ScenarioId == int(differenceScenarios.Alternative[0])]
 
 # Load Results Scenario for the baseline scenario
 if "Yes" in np.unique(baseScenarioTable.IsResult):
     baseScenario = myLibrary.scenarios(int(differenceScenarios.Baseline[0]))
 else:
-    baseScenarios = allScenarios[allScenarios.ParentID == int(differenceScenarios.Baseline[0])]
+    baseScenarios = allScenarios[allScenarios.ParentId == int(differenceScenarios.Baseline[0])]
     if baseScenarios.empty:
         sys.exit("No results were found for the Baseline Scenario.")
     else:
-        baseResultID = max(baseScenarios.ScenarioID)
+        baseResultID = max(baseScenarios.ScenarioId)
         baseScenario = myLibrary.scenarios(baseResultID)
 
 # Load Results Scenario for the alternative scenario
 if "Yes" in np.unique(altrScenarioTable.IsResult):
     altrScenario = myLibrary.scenarios(int(differenceScenarios.Alternative[0]))
 else:
-    altrScenarios = allScenarios[allScenarios.ParentID == int(differenceScenarios.Alternative[0])]
+    altrScenarios = allScenarios[allScenarios.ParentId == int(differenceScenarios.Alternative[0])]
     if altrScenarios.empty:
         sys.exit("No results were found for the Alternative Scenario.")
     else:
-        altrResultID = max(altrScenarios.ScenarioID)
+        altrResultID = max(altrScenarios.ScenarioId)
         altrScenario = myLibrary.scenarios(altrResultID)
 
 # Load input datasheets for each scenario
@@ -104,10 +104,10 @@ altrTabular = altrScenario.datasheets(name = "omniscape_outputTabularReclassific
 
 # Validation for baseline & alternative scenarios results ----------------------
 
-if baseOmniscapeOutput.normalized_cum_currmap[0] != baseOmniscapeOutput.normalized_cum_currmap[0]:
+if baseOmniscapeOutput.normalizedCumCurrmap[0] != baseOmniscapeOutput.normalizedCumCurrmap[0]:
     sys.exit("'Normalized current' raster is required for the Baseline Scenario.")
 
-if altrOmniscapeOutput.normalized_cum_currmap[0] != altrOmniscapeOutput.normalized_cum_currmap[0]:
+if altrOmniscapeOutput.normalizedCumCurrmap[0] != altrOmniscapeOutput.normalizedCumCurrmap[0]:
     sys.exit("'Normalized current' raster is required for the Alternative Scenario.")
 
 if (baseRasterPath.empty) | (altrRasterPath.empty):
@@ -130,10 +130,10 @@ ps.environment.progress_bar(message="Calculating spatial differences", report_ty
 
 # Normalized current -----------------------------
 
-if (baseOmniscapeOutput.normalized_cum_currmap[0] == baseOmniscapeOutput.normalized_cum_currmap[0]) & (altrOmniscapeOutput.normalized_cum_currmap[0] == altrOmniscapeOutput.normalized_cum_currmap[0]):
+if (baseOmniscapeOutput.normalizedCumCurrmap[0] == baseOmniscapeOutput.normalizedCumCurrmap[0]) & (altrOmniscapeOutput.normalizedCumCurrmap[0] == altrOmniscapeOutput.normalizedCumCurrmap[0]):
     # Load normalized current raster
-    baseNormRaster = rasterio.open(baseOmniscapeOutput.normalized_cum_currmap[0])
-    altrNormRaster = rasterio.open(altrOmniscapeOutput.normalized_cum_currmap[0])
+    baseNormRaster = rasterio.open(baseOmniscapeOutput.normalizedCumCurrmap[0])
+    altrNormRaster = rasterio.open(altrOmniscapeOutput.normalizedCumCurrmap[0])
     # Transform raster into dataframe
     baseNormData = baseNormRaster.read()
     altrNormData = altrNormRaster.read()
@@ -162,8 +162,8 @@ if (baseOmniscapeOutput.normalized_cum_currmap[0] == baseOmniscapeOutput.normali
 
 if (len(baseRasterPath) != 0) & (len(altrRasterPath) != 0):
     # Load connectivity category raster
-    baseRaster = rasterio.open(baseRasterPath.movement_types[0])
-    altrRaster = rasterio.open(altrRasterPath.movement_types[0])
+    baseRaster = rasterio.open(baseRasterPath.movementTypes[0])
+    altrRaster = rasterio.open(altrRasterPath.movementTypes[0])
     # Transform raster into dataframe
     baseData = baseRaster.read()
     altrData = altrRaster.read()
@@ -215,7 +215,7 @@ if (len(baseRasterPath) != 0) & (len(altrRasterPath) != 0):
         # Save output raster to file
         with rasterio.open(os.path.join(outputCategoryPath, "connectivityDifference_" + repr(i) + ".tif"), mode="w", **outMeta) as outputRaster: outputRaster.write(differenceRaster)
         # Get internal ID for the connectivity category
-        movementTypeID = movementTypeClasses.movementTypesID[movementTypeClasses.classID == i]
+        movementTypeID = movementTypeClasses.movementTypesId[movementTypeClasses.classID == i]
         # Save path the to file
         outputSpatialCategory.loc[len(outputSpatialCategory.index)] = [int(movementTypeID), os.path.join(outputCategoryPath, "connectivityDifference_" + repr(i) + ".tif")] 
         # Calculate Jaccard similarity
@@ -277,7 +277,7 @@ if (len(baseTabular) != 0) & (len(altrTabular) != 0):
             amountArea = 0
             outputTabularChange.loc[len(outputTabularChange.index)] = [int(transition[0]), int(transition[1]), float(amountArea), float(percentCover)]
     # Change movementTypesID string to class
-    movementStringToClass = pd.DataFrame({'movementTypesID': movementTypeClasses.movementTypesID,
+    movementStringToClass = pd.DataFrame({'movementTypesID': movementTypeClasses.movementTypesId,
                                         'Name': movementTypeClasses.Name})
     dS2C = movementStringToClass.set_index('Name').to_dict()
     diffSummary = diffSummary.replace(dS2C['movementTypesID'])

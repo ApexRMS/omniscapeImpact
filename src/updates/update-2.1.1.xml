@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8" ?>
-<update comment="Update to omniscape 2.1 that removes underscores from column names for compatibility with SyncroSim 3">
+<update comment="Update to omniscapeImpact 2.0.0 that removes underscores from column names for compatibility with SyncroSim 3">
 
     <!-- Rename columns -->
     <action code="RenameColumn" tableName="ReclassTable" oldColumnName="land_cover" newColumnName="landCover">
