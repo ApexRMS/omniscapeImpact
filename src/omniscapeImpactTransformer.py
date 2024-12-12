@@ -14,10 +14,6 @@ mySession = ps.Session()
 packagesInstalled = mySession.packages()
 omniscapeVersion = packagesInstalled.Version[packagesInstalled.Name == "omniscape"]
 
-if pd.unique(omniscapeVersion)[0] != "2.1.1":
-    sys.exit("The omniscapeImpact package version 2.0.0 requires the omniscape package version 2.1.1.")
-
-
 
 # Set up -----------------------------------------------------------------------
 
