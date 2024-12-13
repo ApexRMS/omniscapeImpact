@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<update comment="Update to omniscapeImpact 2.0.0 that updates column names for compatibility with SyncroSim 3">
+
+<!-- Rename chart variables -->
+<action code="RenameChartVariable" oldVariableName="outputTabularDifferences_amountAreaDifference" newVariableName="outputTabularDifferencesamountAreaDifference">
+</action>
+<action code="RenameChartVariable" oldVariableName="outputTabularDifferences_percentCoverDifference" newVariableName="outputTabularDifferencespercentCoverDifference">
+</action>
+<action code="RenameChartVariable" oldVariableName="outputTabularJaccard_dissimilarity" newVariableName="outputTabularJaccarddissimilarity">
+</action>
+
+<!-- Rename map variables -->
+<action code="RenameMapVariable" oldVariableName="outputSpatialOverall_overallCurrentDifferenceRaster" newVariableName="outputSpatialOveralloverallCurrentDifferenceRaster">
+</action>
+<action code="RenameMapVariable" oldVariableName="outputSpatialOverall_overallDifferenceRaster" newVariableName="outputSpatialOveralloverallDifferenceRaster">
+</action>
+<action code="RenameMapVariable" oldVariableName="outputSpatialCategory_perCategoryRaster" newVariableName="outputSpatialCategoryperCategoryRaster">
+</action>
+
+</update>

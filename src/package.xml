@@ -1,126 +1,98 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<package name="omniscapeImpact" displayName="Calculates changes in connectivity categories from a baseline" isAddOn="True" extendsPackage="omniscape" url="https://apexrms.github.io/omniscape/tutorials/omniscapeImpact" version="1.0.2">
-  <transformers>
-    <transformer name="omniscapeImpactTransformer" displayName="3 - Connectivity Impact Assessment" isPrimary="True" isPipelineBased="True" transformerSpecificOutput="False" isRunnable="True" programName="python" programArguments="omniscapeImpactTransformer.py" condaEnv="omniscapeEnvironment.yml">
-      <pipeline>
-        <datafeed name="outputTabularJaccard" type="Output" />
-        <datafeed name="outputTabularDifferences" type="Output" />
-        <datafeed name="outputTabularChange" type="Output" />
-        <datafeed name="outputSpatialOverall" type="Output" />
-        <datafeed name="differenceScenarios" type="Input" />
-        <datafeed name="outputSpatialCategory" type="Output" />
-      </pipeline>
-      <datafeeds>
-        <datafeed name="differenceScenarios" displayName="Scenarios to Compare" dataScope="Scenario">
-          <datasheets>
-            <datasheet name="differenceScenarios" displayName="Scenarios to Compare" isSingleRow="True">
-              <columns>
-                <column name="differenceScenariosID" dataType="Integer" isPrimary="True" />
-                <column name="ScenarioID" dataType="Integer" />
-                <column name="Baseline" displayName="Baseline Scenario ID" dataType="Integer" validationType="WholeNumber" validationCondition="None" isOptional="False" allowDbNull="False" />
-                <column name="Alternative" displayName="Alternative Scenario ID" dataType="Integer" validationType="WholeNumber" validationCondition="None" isOptional="False" allowDbNull="False" />
-              </columns>
-            </datasheet>
-          </datasheets>
-        </datafeed>
-        <datafeed name="outputSpatialOverall" displayName="Overall" dataScope="Scenario">
-          <datasheets>
-            <datasheet name="outputSpatialOverall" displayName="Overall" isSingleRow="True">
-              <columns>
-                <column name="outputSpatialOverallID" dataType="Integer" isPrimary="True" />
-                <column name="ScenarioID" dataType="Integer" />
-                <column name="overallCurrentDifferenceRaster" displayName="Normalized current difference" dataType="String" isExternalFile="True" externalFileFilter="GeoTIFF Files (*.tif)|*.tif|All Files (*.*)|*.*" isRaster="True" />
-                <column name="overallDifferenceRaster" displayName="Cross-category difference" dataType="String" isExternalFile="True" externalFileFilter="GeoTIFF Files (*.tif)|*.tif|All Files (*.*)|*.*" isRaster="True" />
-              </columns>
-            </datasheet>
-          </datasheets>
-        </datafeed>
-        <datafeed name="outputSpatialCategory" displayName="Per Category" dataScope="Scenario">
-          <datasheets>
-            <datasheet name="outputSpatialCategory" displayName="Per Category">
-              <columns>
-                <column name="outputSpatialCategoryID" dataType="Integer" isPrimary="True" />
-                <column name="ScenarioID" dataType="Integer" isCompositeIndex="True" />
-                <column name="movementTypesID" displayName="Connectivity category" dataType="Integer" validationType="Datasheet" formula1="omniscape_movementTypes" allowDbNull="False" />
-                <column name="perCategoryRaster" displayName="File path" dataType="String" isExternalFile="True" externalFileFilter="GeoTIFF Files (*.tif)|*.tif|All Files (*.*)|*.*" isRaster="True" />
-              </columns>
-            </datasheet>
-          </datasheets>
-        </datafeed>
-        <datafeed name="outputTabularDifferences" displayName="Differences Summary" dataScope="Scenario">
-          <datasheets>
-            <datasheet name="outputTabularDifferences" displayName="Differences Summary">
-              <columns>
-                <column name="outputTabularDifferencesID" dataType="Integer" isPrimary="True" />
-                <column name="ScenarioID" dataType="Integer" isCompositeIndex="True" />
-                <column name="movementTypesID" displayName="Connectivity category" dataType="Integer" validationType="Datasheet" formula1="omniscape_movementTypes" allowDbNull="False" />
-                <column name="amountAreaDifference" displayName="Area difference" dataType="Double" validationType="Decimal" validationCondition="None" />
-                <column name="percentCoverDifference" displayName="Proportion difference" dataType="Double" validationType="Decimal" validationCondition="None" />
-              </columns>
-            </datasheet>
-          </datasheets>
-        </datafeed>
-        <datafeed name="outputTabularChange" displayName="Transitions Summary" dataScope="Scenario">
-          <datasheets>
-            <datasheet name="outputTabularChange" displayName="Transitions Summary">
-              <columns>
-                <column name="outputTabularChangeID" dataType="Integer" isPrimary="True" />
-                <column name="ScenarioID" dataType="Integer" isCompositeIndex="True" />
-                <column name="movementTypesIDfrom" displayName="From" dataType="String" />
-                <column name="movementTypesIDto" displayName="To" dataType="String" />
-                <column name="amoutAreaChange" displayName="Area change" dataType="Double" validationType="Decimal" validationCondition="None" />
-                <column name="percentCoverChange" displayName="Proportion change" dataType="Double" validationType="Decimal" validationCondition="None" />
-              </columns>
-            </datasheet>
-          </datasheets>
-        </datafeed>
-        <datafeed name="outputTabularJaccard" displayName="Jaccard Dissimilarity" dataScope="Scenario">
-          <datasheets>
-            <datasheet name="outputTabularJaccard" displayName="Jaccard Dissimilarity">
-              <columns>
-                <column name="outputTabularJaccardID" dataType="Integer" isPrimary="True" />
-                <column name="ScenarioID" dataType="Integer" isCompositeIndex="True" />
-                <column name="movementTypesID" displayName="Connectivity category" dataType="Integer" validationType="Datasheet" formula1="omniscape_movementTypes" allowDbNull="False" />
-                <column name="dissimilarity" displayName="Dissimilarity" dataType="Double" validationType="Decimal" validationCondition="None" />
-              </columns>
-            </datasheet>
-          </datasheets>
-        </datafeed>
-      </datafeeds>
-    </transformer>
-  </transformers>
-  <layouts>
-    <layout name="coreforms_ScenarioDatafeeds" insertAfter="omniscape_Advanced">
-      <group name="Add0on" displayName="Add-on">
-        <group name="Impact0Assessment" displayName="Impact Assessment">
-          <item name="differenceScenarios" showIf="inPipeline" />
-          <group name="Results" displayName="Results">
-            <group name="Spatial" displayName="Spatial">
-              <item name="outputSpatialOverall" showIf="inPipeline" />
-              <item name="outputSpatialCategory" showIf="inPipeline" />
-            </group>
-            <group name="Tabular" displayName="Tabular">
-              <item name="outputTabularDifferences" showIf="inPipeline" />
-              <item name="outputTabularChange" showIf="inPipeline" />
-              <item name="outputTabularJaccard" showIf="inPipeline" />
-            </group>
-          </group>
+<package name="omniscapeImpact" displayName="Omniscape Impact" description="Calculates changes in connectivity categories from a baseline" version="2.0.0" url="https://apexrms.github.io/omniscape/tutorials/omniscapeImpact">
+
+  <builtFor package="omniscape" version="2.1.1" />
+
+  <!--Scenario Datasheets-->
+
+  <dataSheet name="differenceScenarios" displayName="Scenarios to Compare" isSingleRow="True">
+    <column name="Baseline" displayName="Baseline Scenario ID" dataType="Integer" validationType="WholeNumber" validationCondition="None" isOptional="False" allowDbNull="False" />
+    <column name="Alternative" displayName="Alternative Scenario ID" dataType="Integer" validationType="WholeNumber" validationCondition="None" isOptional="False" allowDbNull="False" />
+  </dataSheet>
+
+  <dataSheet name="outputSpatialOverall" displayName="Overall" isSingleRow="True">
+    <column name="overallCurrentDifferenceRaster" displayName="Normalized current difference" dataType="String" isExternalFile="True" externalFileFilter="GeoTIFF Files (*.tif)|*.tif|All Files (*.*)|*.*" isRaster="True" />
+    <column name="overallDifferenceRaster" displayName="Cross-category difference" dataType="String" isExternalFile="True" externalFileFilter="GeoTIFF Files (*.tif)|*.tif|All Files (*.*)|*.*" isRaster="True" />
+  </dataSheet>
+
+  <dataSheet name="outputSpatialCategory" displayName="Per Category">
+    <column name="movementTypesID" displayName="Connectivity category" dataType="Integer" validationType="Datasheet" formula1="omniscape_movementTypes" allowDbNull="False" />
+    <column name="perCategoryRaster" displayName="File path" dataType="String" isExternalFile="True" externalFileFilter="GeoTIFF Files (*.tif)|*.tif|All Files (*.*)|*.*" isRaster="True" />
+  </dataSheet>
+
+  <dataSheet name="outputTabularDifferences" displayName="Differences Summary">
+    <column name="movementTypesID" displayName="Connectivity category" dataType="Integer" validationType="Datasheet" formula1="omniscape_movementTypes" allowDbNull="False" />
+    <column name="amountAreaDifference" displayName="Area difference" dataType="Double" validationType="Decimal" validationCondition="None" />
+    <column name="percentCoverDifference" displayName="Proportion difference" dataType="Double" validationType="Decimal" validationCondition="None" />
+  </dataSheet>
+
+  <dataSheet name="outputTabularChange" displayName="Transitions Summary">
+    <column name="movementTypesIDfrom" displayName="From" dataType="String" />
+    <column name="movementTypesIDto" displayName="To" dataType="String" />
+    <column name="amoutAreaChange" displayName="Area change" dataType="Double" validationType="Decimal" validationCondition="None" />
+    <column name="percentCoverChange" displayName="Proportion change" dataType="Double" validationType="Decimal" validationCondition="None" />
+  </dataSheet>
+
+  <dataSheet name="outputTabularJaccard" displayName="Jaccard Dissimilarity">
+    <column name="movementTypesID" displayName="Connectivity category" dataType="Integer" validationType="Datasheet" formula1="omniscape_movementTypes" allowDbNull="False" />
+    <column name="dissimilarity" displayName="Dissimilarity" dataType="Double" validationType="Decimal" validationCondition="None" />
+  </dataSheet>
+
+  <!--Transformers-->
+
+  <transformer 
+    name="omniscapeImpactTransformer" 
+    displayName="3 - Connectivity Impact Assessment" 
+    isRunnable="True" 
+    programName="python" 
+    programArguments="omniscapeImpactTransformer.py" 
+    condaEnv="omniscapeEnvironmentv2.yml" 
+    condaEnvVersion="1">
+    <dataSheet name="outputTabularJaccard" type="Output" />
+    <dataSheet name="outputTabularDifferences" type="Output" />
+    <dataSheet name="outputTabularChange" type="Output" />
+    <dataSheet name="outputSpatialOverall" type="Output" />
+    <dataSheet name="differenceScenarios" type="Input" />
+    <dataSheet name="outputSpatialCategory" type="Output" />
+  </transformer>
+
+  <!--Layouts-->
+
+  <layout type="Scenario">
+    <group name="Impact0Assessment" displayName="Impact Assessment">
+      <item name="differenceScenarios" />
+      <group name="Results" displayName="Results">
+        <group name="Spatial" displayName="Spatial">
+          <item name="outputSpatialOverall" />
+          <item name="outputSpatialCategory" />
+        </group>
+        <group name="Tabular" displayName="Tabular">
+          <item name="outputTabularDifferences" />
+          <item name="outputTabularChange" />
+          <item name="outputTabularJaccard" />
         </group>
       </group>
-    </layout>
-    <layout name="corestimeforms_Charts">
-      <group name="ImpactAssessment" displayName="Impact Assessment">
-        <item name="outputTabularDifferences_amountAreaDifference" displayName="Area difference" dataSheet="outputTabularDifferences" column="amountAreaDifference" filter="movementTypesID" prefixFolderName="False" />
-        <item name="outputTabularDifferences_percentCoverDifference" displayName="Proportion difference" dataSheet="outputTabularDifferences" column="percentCoverDifference" filter="movementTypesID" prefixFolderName="False" />
-        <item name="outputTabularJaccard_dissimilarity" displayName="Jaccard dissimilarity" dataSheet="outputTabularJaccard" column="dissimilarity" filter="movementTypesID" prefixFolderName="False" />
-      </group>
-    </layout>
-    <layout name="corestimeforms_Maps">
-      <group name="ImpactAssessment" displayName="Impact Assessment">
-        <item name="outputSpatialOverall_overallCurrentDifferenceRaster" displayName="Normalized current difference" dataSheet="outputSpatialOverall" column="overallCurrentDifferenceRaster" />
-        <item name="outputSpatialOverall_overallDifferenceRaster" displayName="Cross-category difference" dataSheet="outputSpatialOverall" column="overallDifferenceRaster" />
-        <item name="outputSpatialCategory_perCategoryRaster" displayName="Per category difference" dataSheet="outputSpatialCategory" column="perCategoryRaster" filter="movementTypesID" />
-      </group>
-    </layout>
-  </layouts>
+    </group>
+  </layout>
+
+  <layout type="Chart">
+    <group name="ImpactAssessment" displayName="Impact Assessment">
+      <item name="outputTabularDifferencesamountAreaDifference" displayName="Area difference" dataSheet="outputTabularDifferences" column="amountAreaDifference" filter="movementTypesID" prefixFolderName="False" />
+      <item name="outputTabularDifferencespercentCoverDifference" displayName="Proportion difference" dataSheet="outputTabularDifferences" column="percentCoverDifference" filter="movementTypesID" prefixFolderName="False" />
+      <item name="outputTabularJaccarddissimilarity" displayName="Jaccard dissimilarity" dataSheet="outputTabularJaccard" column="dissimilarity" filter="movementTypesID" prefixFolderName="False" />
+    </group>
+  </layout>
+
+  <layout type="Map">
+    <group name="ImpactAssessment" displayName="Impact Assessment">
+      <item name="outputSpatialOveralloverallCurrentDifferenceRaster" displayName="Normalized current difference" dataSheet="outputSpatialOverall" column="overallCurrentDifferenceRaster" />
+      <item name="outputSpatialOveralloverallDifferenceRaster" displayName="Cross-category difference" dataSheet="outputSpatialOverall" column="overallDifferenceRaster" />
+      <item name="outputSpatialCategoryperCategoryRaster" displayName="Per category difference" dataSheet="outputSpatialCategory" column="perCategoryRaster" filter="movementTypesID" />
+    </group>
+  </layout>
+
+  <!--Update Provider-->
+  <updateProvider className="SyncroSim.Core.XMLUpdateProvider" classAssembly="SyncroSim.Core">
+  </updateProvider>
+
 </package>
