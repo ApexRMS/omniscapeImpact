@@ -1,7 +1,7 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<package name="omniscapeImpact" displayName="Omniscape Impact" description="Calculates changes in connectivity categories from a baseline" version="2.0.0" url="https://apexrms.github.io/omniscape/tutorials/omniscapeImpact">
+<package name="omniscapeImpact" displayName="Omniscape Impact" description="Calculates changes in connectivity categories from a baseline" version="2.0.0" url="https://apexrms.github.io/omniscape/tutorials/omniscapeImpact" minSyncroSimVersion="3.1.0">
 
-  <builtFor package="omniscape" version="2.1.1" />
+  <builtFor package="omniscape" version="2.7.0" />
 
   <!--Scenario Datasheets-->
 
@@ -46,8 +46,8 @@
     isRunnable="True" 
     programName="python" 
     programArguments="omniscapeImpactTransformer.py" 
-    condaEnv="omniscapeEnvironmentv2.yml" 
-    condaEnvVersion="1">
+    condaEnv="omniscapeEnvironment.yml"
+    condaEnvVersion="3.5">
     <dataSheet name="outputTabularJaccard" type="Output" />
     <dataSheet name="outputTabularDifferences" type="Output" />
     <dataSheet name="outputTabularChange" type="Output" />
