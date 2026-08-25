@@ -8,6 +8,9 @@ import numpy as np
 import itertools
 import sys
 
+from helperFunctions import validateNodataFootprint, validateSameGrid, nodataMask
+from constants import NODATA_VALUE
+
 # Validation for base package version ------------------------------------------
 
 mySession = ps.Session() 
@@ -116,7 +119,48 @@ if (baseTabular.empty) | (altrTabular.empty):
     if (baseTabular.empty) & (altrTabular.empty):
         ps.environment.update_run_log("'Connectivity Categories Summary' datasheets are missing. Therefore, no tabular summary was calculated.") 
     else:
-        ps.environment.update_run_log("The 'Connectivity Categories Summary' datasheet for one of the Scenarios was missing. Therefore, no tabular summary was calculated.") 
+        ps.environment.update_run_log("The 'Connectivity Categories Summary' datasheet for one of the Scenarios was missing. Therefore, no tabular summary was calculated.")
+
+
+
+# Load rasters & validate that the two Scenarios are comparable -----------------
+
+# Every output of this package is a pixel-by-pixel comparison between the two
+# Scenarios, so the rasters must describe the same grid and must agree about
+# which pixels hold valid data. Both raster pairs are loaded and checked here,
+# before anything is written, so that a failed check cannot leave a partial set
+# of results behind.
+
+hasNormalizedCurrent = ((baseOmniscapeOutput.normalizedCumCurrmap[0] == baseOmniscapeOutput.normalizedCumCurrmap[0])
+                        & (altrOmniscapeOutput.normalizedCumCurrmap[0] == altrOmniscapeOutput.normalizedCumCurrmap[0]))
+hasCategories = (len(baseRasterPath) != 0) & (len(altrRasterPath) != 0)
+
+if hasNormalizedCurrent:
+    # Load normalized current rasters
+    baseNormRaster = rasterio.open(baseOmniscapeOutput.normalizedCumCurrmap[0])
+    altrNormRaster = rasterio.open(altrOmniscapeOutput.normalizedCumCurrmap[0])
+    validateSameGrid(baseNormRaster, altrNormRaster, "Normalized current")
+    # Read as float so that the subtraction below cannot wrap around
+    baseNormData = baseNormRaster.read().astype(float)
+    altrNormData = altrNormRaster.read().astype(float)
+    # Identify no-data pixels from the raster itself rather than assuming -9999
+    baseNormMask = nodataMask(baseNormRaster, baseNormData)
+    altrNormMask = nodataMask(altrNormRaster, altrNormData)
+    validateNodataFootprint(baseNormMask, altrNormMask, "Normalized current")
+    normMask = baseNormMask | altrNormMask
+
+if hasCategories:
+    # Load connectivity category rasters
+    baseRaster = rasterio.open(baseRasterPath.movementTypes[0])
+    altrRaster = rasterio.open(altrRasterPath.movementTypes[0])
+    validateSameGrid(baseRaster, altrRaster, "Connectivity categories")
+    baseData = baseRaster.read()
+    altrData = altrRaster.read()
+    # Identify no-data pixels from the raster itself rather than assuming -9999
+    baseCategoryMask = nodataMask(baseRaster, baseData)
+    altrCategoryMask = nodataMask(altrRaster, altrData)
+    validateNodataFootprint(baseCategoryMask, altrCategoryMask, "Connectivity categories")
+    categoryMask = baseCategoryMask | altrCategoryMask
 
 
 
@@ -126,26 +170,23 @@ ps.environment.progress_bar(message="Calculating spatial differences", report_ty
 
 # Normalized current -----------------------------
 
-if (baseOmniscapeOutput.normalizedCumCurrmap[0] == baseOmniscapeOutput.normalizedCumCurrmap[0]) & (altrOmniscapeOutput.normalizedCumCurrmap[0] == altrOmniscapeOutput.normalizedCumCurrmap[0]):
-    # Load normalized current raster
-    baseNormRaster = rasterio.open(baseOmniscapeOutput.normalizedCumCurrmap[0])
-    altrNormRaster = rasterio.open(altrOmniscapeOutput.normalizedCumCurrmap[0])
-    # Transform raster into dataframe
-    baseNormData = baseNormRaster.read()
-    altrNormData = altrNormRaster.read()
-    # Reset data as float
-    baseNormData.astype(float) 
-    altrNormData.astype(float) 
+if hasNormalizedCurrent:
+    # Neutralise no-data pixels before the subtraction so that they cannot
+    # contribute an extreme value or propagate NaN into the result
+    baseNormClean = np.where(normMask, 0.0, baseNormData)
+    altrNormClean = np.where(normMask, 0.0, altrNormData)
     # Calculate the overall impact of the intervention as absolute change
-    normDifference = altrNormData - baseNormData
+    normDifference = altrNormClean - baseNormClean
     # Set NA back to -9999
-    normDifference[(baseNormData == -9999) & (altrNormData == -9999)] = -9999
-    # Save output raster to file
-    outMeta = baseNormRaster.meta
+    normDifference[normMask] = NODATA_VALUE
+    # Save output raster to file, declaring the no-data value explicitly so that
+    # it is not inherited from the input raster (which may not declare one)
+    outMeta = baseNormRaster.meta.copy()
+    outMeta.update(dtype = "float32", nodata = NODATA_VALUE)
     with rasterio.open(
-        os.path.join(outputOverallPath, "normalizedCurrentImpact.tif"), 
+        os.path.join(outputOverallPath, "normalizedCurrentImpact.tif"),
         mode="w", **outMeta) as outputRaster:
-        outputRaster.write(normDifference)
+        outputRaster.write(normDifference.astype("float32"))
     # Load empty output datasheet
     outputSpatialOverall = myScenario.datasheets(name = "omniscapeImpact_outputSpatialOverall")
     # Save path the to file
@@ -156,32 +197,31 @@ if (baseOmniscapeOutput.normalizedCumCurrmap[0] == baseOmniscapeOutput.normalize
 
 # Connectivity categories ------------------------
 
-if (len(baseRasterPath) != 0) & (len(altrRasterPath) != 0):
-    # Load connectivity category raster
-    baseRaster = rasterio.open(baseRasterPath.movementTypes[0])
-    altrRaster = rasterio.open(altrRasterPath.movementTypes[0])
-    # Transform raster into dataframe
-    baseData = baseRaster.read()
-    altrData = altrRaster.read()
-    baseData.astype(float) 
-    altrData = altrRaster.read()
+if hasCategories:
+    # Neutralise no-data pixels before the subtraction so that they cannot
+    # contribute an extreme value or overflow the integer type
+    baseClean = np.where(categoryMask, 0, baseData).astype(np.int32)
+    altrClean = np.where(categoryMask, 0, altrData).astype(np.int32)
     # Calculate the overall impact of the intervention
-    overallImpact = altrData - baseData
+    overallImpact = altrClean - baseClean
     # Set NA back to -9999
-    overallImpact[(altrData == -9999) & (baseData == -9999)] = -9999
-    # Save output raster to file
-    outMeta = baseRaster.meta
+    overallImpact[categoryMask] = NODATA_VALUE
+    # Save output raster to file, declaring the no-data value explicitly so that
+    # it is not inherited from the input raster (which may not declare one)
+    outMeta = baseRaster.meta.copy()
+    outMeta.update(dtype = "int16", nodata = NODATA_VALUE)
     with rasterio.open(
-        os.path.join(outputOverallPath, "connectivityCategoryImpact.tif"), 
+        os.path.join(outputOverallPath, "connectivityCategoryImpact.tif"),
         mode="w", **outMeta) as outputRaster:
-        outputRaster.write(overallImpact)
+        outputRaster.write(overallImpact.astype("int16"))
     # Save path the to file
     outputSpatialOverall.overallDifferenceRaster = pd.Series(os.path.join(outputOverallPath, "connectivityCategoryImpact.tif"))
     # Save outputs to SyncroSim Library
     myParentScenario.save_datasheet(name = "omniscapeImpact_outputSpatialOverall", data = outputSpatialOverall)
     # Jaccard dissimilarity --------------------------
-    # Get unique connectivity categories
-    unique = np.unique(baseData)
+    # Get unique connectivity categories, ignoring no-data pixels so that a
+    # no-data value coinciding with a category ID cannot be picked up as a class
+    unique = np.unique(baseData[~categoryMask])
     # Transform array into dataframe
     unique = pd.DataFrame(unique)
     # Remove NA value
@@ -193,21 +233,19 @@ if (len(baseRasterPath) != 0) & (len(altrRasterPath) != 0):
     outputTabularJaccard = myScenario.datasheets(name = "omniscapeImpact_outputTabularJaccard")
     # For each connectivity category
     for i in uniqueClass[0]:
-        # Create a copy of the connectivity category dataframe
-        baseTempRaster = baseData.copy()
-        altrTempRaster = altrData.copy()
-        # Create binary map
-        baseTempRaster[np.where(baseData != i)] = 0 
-        baseTempRaster[np.where(baseData == i)] = 1
-        altrTempRaster[np.where(altrData != i)] = 0
-        altrTempRaster[np.where(altrData == i)] = 1
+        # Create binary map, excluding no-data pixels so that they cannot be
+        # counted as belonging to this category
+        baseTempRaster = ((baseData == i) & ~categoryMask).astype(np.int16)
+        altrTempRaster = ((altrData == i) & ~categoryMask).astype(np.int16)
         baseReclassList.append(baseTempRaster)
         altrReclassList.append(altrTempRaster)
         # Calculate the difference between alternative and baseline scenarios
         differenceRaster = altrTempRaster - baseTempRaster
         similarityRaster = altrTempRaster + baseTempRaster
-        # Set 0 to NA using -9999 flag
-        differenceRaster[(differenceRaster == 0) & (similarityRaster != 2)] = -9999
+        # Set 0 to NA using -9999 flag. Note that this deliberately does not
+        # distinguish real no-data from "this category is absent in both
+        # Scenarios" - both are flagged -9999, as in previous versions.
+        differenceRaster[(differenceRaster == 0) & (similarityRaster != 2)] = NODATA_VALUE
         # Save output raster to file
         with rasterio.open(os.path.join(outputCategoryPath, "connectivityDifference_" + repr(i) + ".tif"), mode="w", **outMeta) as outputRaster: outputRaster.write(differenceRaster)
         # Get internal ID for the connectivity category
