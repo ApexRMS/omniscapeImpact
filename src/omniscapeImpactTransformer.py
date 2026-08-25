@@ -12,13 +12,6 @@ from helperFunctions import (validateNodataFootprint, validateSameGrid, nodataMa
                              sameCategoryThresholds, safeProgressBar, safeUpdateRunLog)
 from constants import NODATA_VALUE
 
-# Validation for base package version ------------------------------------------
-
-mySession = ps.Session() 
-packagesInstalled = mySession.packages()
-omniscapeVersion = packagesInstalled.Version[packagesInstalled.Name == "omniscape"]
-
-
 # Set up -----------------------------------------------------------------------
 
 safeProgressBar(message="Setting up Scenario", report_type="message")
