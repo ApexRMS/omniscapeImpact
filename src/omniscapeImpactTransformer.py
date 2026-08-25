@@ -9,7 +9,8 @@ import itertools
 import sys
 
 from helperFunctions import (validateNodataFootprint, validateSameGrid, nodataMask,
-                             sameCategoryThresholds, safeProgressBar, safeUpdateRunLog)
+                             sameCategoryThresholds, alignCategorySummaries,
+                             safeProgressBar, safeUpdateRunLog)
 from constants import NODATA_VALUE
 
 # Set up -----------------------------------------------------------------------
@@ -283,12 +284,11 @@ if hasCategories:
 safeProgressBar(message="Calculating tabular differences", report_type="message")
 
 if (len(baseTabular) != 0) & (len(altrTabular) != 0):
-    # Calculate change in area and percent cover
-    diffArea = altrTabular.amountArea - baseTabular.amountArea  
-    diffCover = altrTabular.percentCover - baseTabular.percentCover
-    # Create tabular output
-    diffSummary = pd.concat([baseTabular.movementTypesID, diffArea, diffCover], axis = 1, ignore_index = True)
-    diffSummary = diffSummary.rename(columns = {0: "movementTypesID", 1:"amountAreaDifference", 2:"percentCoverDifference"})
+    # Calculate change in area and percent cover. The two summaries are joined
+    # on connectivity category rather than subtracted by row position, because
+    # omniscape omits any category that occupies no pixels - so the two
+    # Scenarios can hold different categories in different orders.
+    diffSummary = alignCategorySummaries(baseTabular, altrTabular)
     # Change movementTypesID from string to class, then save. The differences
     # summary is derived from the tabular datasheets alone, so it is produced
     # even when the connectivity categories themselves are not comparable.

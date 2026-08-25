@@ -1,6 +1,7 @@
 ## omniscapeImpact
 
 import pysyncrosim as ps
+import pandas as pd
 import numpy as np
 import sys
 
@@ -116,6 +117,66 @@ def validateSameGrid(baseSource, altrSource, rasterLabel):
             + repr(baseTransform) + ", Alternative " + repr(altrTransform)
             + "). Both Scenarios must be run over the same extent and "
             "resolution before they can be compared.")
+
+
+def validateOneRowPerCategory(tabularSummary, scenarioLabel):
+    """Exit unless each connectivity category appears exactly once.
+
+    omniscape's 'Connectivity Categories Summary' is expected to hold one row
+    per category. If a category appears more than once there is no safe way to
+    combine the rows: summing is only correct for area if the duplicates are
+    disjoint partial counts, and proportions cannot be summed at all because
+    each would be relative to a different denominator. Rather than guess, this
+    reports what was found.
+    """
+    duplicated = tabularSummary.movementTypesID[
+        tabularSummary.movementTypesID.duplicated()].unique()
+
+    if len(duplicated) > 0:
+        sys.exit(
+            "The " + scenarioLabel + " Scenario's 'Connectivity Categories "
+            "Summary' contains more than one row for " + repr(len(duplicated))
+            + " connectivity category or categories (" + ", ".join(
+                repr(d) for d in duplicated) + "), across " + repr(len(tabularSummary))
+            + " rows in total. Each connectivity category must appear exactly "
+            "once. This can occur if the Scenario was run using spatial "
+            "multiprocessing.")
+
+
+def alignCategorySummaries(baseTabular, altrTabular):
+    """Join the two Scenarios' category summaries on category, not row order.
+
+    The summaries are joined on 'movementTypesID' rather than being subtracted
+    positionally. omniscape omits any category that occupies no pixels, so the
+    two Scenarios can legitimately contain different categories, in different
+    orders, and a positional subtraction would silently attribute differences
+    to the wrong categories.
+
+    A category missing from one Scenario means it occupies no pixels there,
+    which is a measured result rather than missing information, so it is filled
+    with zero. This is what allows a category disappearing entirely to be
+    reported as a total loss instead of as NaN.
+    """
+    validateOneRowPerCategory(baseTabular, "Baseline")
+    validateOneRowPerCategory(altrTabular, "Alternative")
+
+    summaryColumns = ["movementTypesID", "amountArea", "percentCover"]
+
+    merged = baseTabular[summaryColumns].merge(
+        altrTabular[summaryColumns],
+        on = "movementTypesID",
+        how = "outer",
+        suffixes = ("Base", "Altr"),
+        validate = "one_to_one")
+
+    # A category absent from a Scenario covers no area and no proportion of it
+    merged = merged.fillna({"amountAreaBase": 0.0, "percentCoverBase": 0.0,
+                            "amountAreaAltr": 0.0, "percentCoverAltr": 0.0})
+
+    return pd.DataFrame({
+        "movementTypesID": merged.movementTypesID,
+        "amountAreaDifference": merged.amountAreaAltr - merged.amountAreaBase,
+        "percentCoverDifference": merged.percentCoverAltr - merged.percentCoverBase})
 
 
 def sameCategoryThresholds(baseThresholds, altrThresholds):
