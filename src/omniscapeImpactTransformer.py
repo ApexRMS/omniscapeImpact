@@ -8,7 +8,8 @@ import numpy as np
 import itertools
 import sys
 
-from helperFunctions import validateNodataFootprint, validateSameGrid, nodataMask, sameCategoryThresholds
+from helperFunctions import (validateNodataFootprint, validateSameGrid, nodataMask,
+                             sameCategoryThresholds, safeProgressBar, safeUpdateRunLog)
 from constants import NODATA_VALUE
 
 # Validation for base package version ------------------------------------------
@@ -20,7 +21,7 @@ omniscapeVersion = packagesInstalled.Version[packagesInstalled.Name == "omniscap
 
 # Set up -----------------------------------------------------------------------
 
-ps.environment.progress_bar(message="Setting up Scenario", report_type="message")
+safeProgressBar(message="Setting up Scenario", report_type="message")
 
 # Set environment and working directory
 e = ps.environment._environment()
@@ -117,15 +118,15 @@ if altrOmniscapeOutput.normalizedCumCurrmap[0] != altrOmniscapeOutput.normalized
 
 if (baseRasterPath.empty) | (altrRasterPath.empty):
     if (baseRasterPath.empty) & (altrRasterPath.empty):
-        ps.environment.update_run_log("'Connectivity categories' raster files are missing. Therefore, only the 'Normalized current' raster files were used.") 
+        safeUpdateRunLog("'Connectivity categories' raster files are missing. Therefore, only the 'Normalized current' raster files were used.") 
     else:
-        ps.environment.update_run_log("The 'Connectivity categories' raster for one of the Scenarios was missing. Therefore, only the 'Normalized current' raster files were used.") 
+        safeUpdateRunLog("The 'Connectivity categories' raster for one of the Scenarios was missing. Therefore, only the 'Normalized current' raster files were used.") 
 
 if (baseTabular.empty) | (altrTabular.empty):
     if (baseTabular.empty) & (altrTabular.empty):
-        ps.environment.update_run_log("'Connectivity Categories Summary' datasheets are missing. Therefore, no tabular summary was calculated.") 
+        safeUpdateRunLog("'Connectivity Categories Summary' datasheets are missing. Therefore, no tabular summary was calculated.") 
     else:
-        ps.environment.update_run_log("The 'Connectivity Categories Summary' datasheet for one of the Scenarios was missing. Therefore, no tabular summary was calculated.")
+        safeUpdateRunLog("The 'Connectivity Categories Summary' datasheet for one of the Scenarios was missing. Therefore, no tabular summary was calculated.")
 
 
 
@@ -147,7 +148,7 @@ hasCategories = (len(baseRasterPath) != 0) & (len(altrRasterPath) != 0)
 # 'Normalized current' comparison is unaffected and still runs.
 if hasCategories and not sameCategoryThresholds(baseThresholds, altrThresholds):
     hasCategories = False
-    ps.environment.update_run_log(
+    safeUpdateRunLog(
         "The Baseline and Alternative Scenarios use different 'Category Thresholds'. "
         "Connectivity categories are therefore not comparable between them, and all "
         "connectivity category outputs have been skipped. Only the 'Normalized "
@@ -184,7 +185,7 @@ if hasCategories:
 
 # Calculate spatial differences & Jaccard similarity ---------------------------
 
-ps.environment.progress_bar(message="Calculating spatial differences", report_type="message")
+safeProgressBar(message="Calculating spatial differences", report_type="message")
 
 # Normalized current -----------------------------
 
@@ -286,7 +287,7 @@ if hasCategories:
 
 # Calculate tabular differences ------------------------------------------------
 
-ps.environment.progress_bar(message="Calculating tabular differences", report_type="message")
+safeProgressBar(message="Calculating tabular differences", report_type="message")
 
 if (len(baseTabular) != 0) & (len(altrTabular) != 0):
     # Calculate change in area and percent cover

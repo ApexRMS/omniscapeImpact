@@ -1,11 +1,40 @@
 ## omniscapeImpact
 
+import pysyncrosim as ps
 import numpy as np
 import sys
 
 from constants import NODATA_VALUE, GRID_TOLERANCE_FRACTION
 
 # Helper functions -------------------------------------------------------------
+
+def safeProgressBar(message, report_type = "message"):
+    """Report progress to SyncroSim, falling back to the console.
+
+    ps.environment.progress_bar calls _validate_environment internally, which
+    raises RuntimeError whenever the SSIM_* environment variables are absent -
+    that is, any time this script is run outside a real SyncroSim invocation.
+    Wrapping it means the transformer can be run and debugged standalone.
+    """
+    try:
+        ps.environment.progress_bar(message = message, report_type = report_type)
+    except RuntimeError:
+        print("[Progress] " + str(message))
+
+
+def safeUpdateRunLog(*message, sep = "", type = "status"):
+    """Write to the SyncroSim run log, falling back to the console.
+
+    ps.environment.update_run_log validates the SyncroSim environment in the
+    same way as progress_bar, so it fails in the same circumstances. omniscape
+    wraps only progress_bar and leaves this one bare; both are wrapped here so
+    that a standalone run completes rather than failing at the first log line.
+    """
+    try:
+        ps.environment.update_run_log(*message, sep = sep, type = type)
+    except RuntimeError:
+        print("[Run log] " + sep.join(str(m) for m in message))
+
 
 def nodataMask(rasterSource, rasterData):
     """Return a boolean array that is True wherever a pixel holds no valid data.
