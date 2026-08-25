@@ -1,14 +1,9 @@
 ## omniscapeImpact
 
-import pysyncrosim as ps
-import pandas as pd
-import os
-import rasterio
 import numpy as np
-import itertools
 import sys
 
-from constants import NODATA_VALUE
+from constants import NODATA_VALUE, GRID_TOLERANCE_FRACTION
 
 # Helper functions -------------------------------------------------------------
 
@@ -52,14 +47,75 @@ def validateSameGrid(baseSource, altrSource, rasterLabel):
     """Exit unless the two rasters describe the same pixel grid.
 
     Every comparison this package makes is pixel-by-pixel, which is only
-    meaningful if both rasters cover the same ground at the same resolution.
+    meaningful if both rasters cover the same ground, at the same resolution, in
+    the same coordinate system. Two rasters can share dimensions while sitting
+    over entirely different terrain, so all three properties are checked.
+
+    The affine transform is compared with a sub-pixel tolerance rather than for
+    exact equality. A raster merged from spatial tiles can differ from one
+    written in a single pass in the last floating-point digit with no
+    consequence for the analysis, but a genuine offset of even a single pixel is
+    far larger than the tolerance and is caught.
     """
+    # Dimensions
     if baseSource.shape != altrSource.shape:
         sys.exit(
             "The Baseline and Alternative '" + rasterLabel + "' rasters have "
             "different dimensions (" + repr(baseSource.shape) + " and "
             + repr(altrSource.shape) + "). Both Scenarios must be run over the "
             "same extent and resolution before they can be compared.")
+
+    # Coordinate reference system
+    if baseSource.crs != altrSource.crs:
+        sys.exit(
+            "The Baseline and Alternative '" + rasterLabel + "' rasters use "
+            "different coordinate reference systems (" + repr(baseSource.crs)
+            + " and " + repr(altrSource.crs) + "). Both Scenarios must use the "
+            "same projection before they can be compared.")
+
+    # Affine transform, to within a fraction of one pixel
+    tolerance = GRID_TOLERANCE_FRACTION * min(
+        abs(baseSource.res[0]), abs(baseSource.res[1]))
+    baseTransform = list(baseSource.transform)[:6]
+    altrTransform = list(altrSource.transform)[:6]
+
+    if any(abs(b - a) > tolerance for b, a in zip(baseTransform, altrTransform)):
+        sys.exit(
+            "The Baseline and Alternative '" + rasterLabel + "' rasters are not "
+            "aligned to the same grid. Their pixel origins or resolutions differ "
+            "by more than " + repr(tolerance) + " map units (Baseline "
+            + repr(baseTransform) + ", Alternative " + repr(altrTransform)
+            + "). Both Scenarios must be run over the same extent and "
+            "resolution before they can be compared.")
+
+
+def sameCategoryThresholds(baseThresholds, altrThresholds):
+    """Return True if both Scenarios classify connectivity the same way.
+
+    'Category Thresholds' are set per Scenario, so two Scenarios can legitimately
+    use different cut-offs. When they do, their connectivity category rasters are
+    built on different definitions, and comparing them would measure the change
+    in definition rather than a change in connectivity. The 'Normalized current'
+    comparison is unaffected, because it never uses thresholds.
+    """
+    if baseThresholds.empty | altrThresholds.empty:
+        return False
+
+    thresholdColumns = ["movementType", "minValue", "maxValue"]
+
+    if not set(thresholdColumns).issubset(baseThresholds.columns):
+        return False
+
+    if not set(thresholdColumns).issubset(altrThresholds.columns):
+        return False
+
+    # Row order carries no meaning, so compare the sorted set of thresholds
+    baseSorted = baseThresholds[thresholdColumns].sort_values(
+        by = thresholdColumns).reset_index(drop = True)
+    altrSorted = altrThresholds[thresholdColumns].sort_values(
+        by = thresholdColumns).reset_index(drop = True)
+
+    return baseSorted.equals(altrSorted)
 
 
 def validateNodataFootprint(baseMask, altrMask, rasterLabel):

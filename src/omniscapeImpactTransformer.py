@@ -8,7 +8,7 @@ import numpy as np
 import itertools
 import sys
 
-from helperFunctions import validateNodataFootprint, validateSameGrid, nodataMask
+from helperFunctions import validateNodataFootprint, validateSameGrid, nodataMask, sameCategoryThresholds
 from constants import NODATA_VALUE
 
 # Validation for base package version ------------------------------------------
@@ -98,6 +98,8 @@ baseRasterPath = baseScenario.datasheets(name = "omniscape_outputSpatialMovement
 altrRasterPath = altrScenario.datasheets(name = "omniscape_outputSpatialMovement", show_full_paths = True)
 baseTabular = baseScenario.datasheets(name = "omniscape_outputTabularReclassification")
 altrTabular = altrScenario.datasheets(name = "omniscape_outputTabularReclassification")
+baseThresholds = baseScenario.datasheets(name = "omniscape_reclassificationThresholds")
+altrThresholds = altrScenario.datasheets(name = "omniscape_reclassificationThresholds")
 
 
 
@@ -134,6 +136,18 @@ if (baseTabular.empty) | (altrTabular.empty):
 hasNormalizedCurrent = ((baseOmniscapeOutput.normalizedCumCurrmap[0] == baseOmniscapeOutput.normalizedCumCurrmap[0])
                         & (altrOmniscapeOutput.normalizedCumCurrmap[0] == altrOmniscapeOutput.normalizedCumCurrmap[0]))
 hasCategories = (len(baseRasterPath) != 0) & (len(altrRasterPath) != 0)
+
+# Connectivity categories are only comparable if both Scenarios were classified
+# using the same thresholds. If they were not, the category rasters describe
+# different things, so every category-derived output is skipped. The
+# 'Normalized current' comparison is unaffected and still runs.
+if hasCategories and not sameCategoryThresholds(baseThresholds, altrThresholds):
+    hasCategories = False
+    ps.environment.update_run_log(
+        "The Baseline and Alternative Scenarios use different 'Category Thresholds'. "
+        "Connectivity categories are therefore not comparable between them, and all "
+        "connectivity category outputs have been skipped. Only the 'Normalized "
+        "current' comparison was calculated.")
 
 if hasNormalizedCurrent:
     # Load normalized current rasters
@@ -277,6 +291,21 @@ if (len(baseTabular) != 0) & (len(altrTabular) != 0):
     # Create tabular output
     diffSummary = pd.concat([baseTabular.movementTypesID, diffArea, diffCover], axis = 1, ignore_index = True)
     diffSummary = diffSummary.rename(columns = {0: "movementTypesID", 1:"amountAreaDifference", 2:"percentCoverDifference"})
+    # Change movementTypesID from string to class, then save. The differences
+    # summary is derived from the tabular datasheets alone, so it is produced
+    # even when the connectivity categories themselves are not comparable.
+    movementStringToClass = pd.DataFrame({'movementTypesID': movementTypeClasses.movementTypesId,
+                                        'Name': movementTypeClasses.Name})
+    dS2C = movementStringToClass.set_index('Name').to_dict()
+    diffSummary = diffSummary.replace(dS2C['movementTypesID'])
+    myParentScenario.save_datasheet(name = "omniscapeImpact_outputTabularDifferences", data = diffSummary)
+
+
+# The transitions summary is counted from the connectivity category rasters, so
+# unlike the differences summary above it can only be produced when those
+# rasters exist and are comparable between the two Scenarios.
+
+if (len(baseTabular) != 0) & (len(altrTabular) != 0) & hasCategories:
     # Get unique connectivity categories
     uniqueCategory = pd.unique(movementTypeClasses['classID'].astype('int16'))
     # Get list of all possible combinations of change between connectivity categories
@@ -285,12 +314,10 @@ if (len(baseTabular) != 0) & (len(altrTabular) != 0):
     outputTabularChange = myScenario.datasheets("omniscapeImpact_outputTabularChange")
     # For each connectivity category
     for transition in categoryTransitions:
-        # Create a copy of the connectivity category dataframe
-        baseTempRaster = baseData.copy()
-        altrTempRaster = altrData.copy()
-        # Create a binary map for a category and scenario
-        baseClassRaster = (baseTempRaster == transition[0]) * 1
-        altrClassRaster = (altrTempRaster == transition[1]) * 1
+        # Create a binary map for a category and scenario, excluding no-data
+        # pixels so that they cannot be counted as belonging to a category
+        baseClassRaster = ((baseData == transition[0]) & ~categoryMask) * 1
+        altrClassRaster = ((altrData == transition[1]) & ~categoryMask) * 1
         # Calculate binary map sum
         sumRaster = baseClassRaster + altrClassRaster
         # Identify where category X transitioned to category Y
@@ -310,18 +337,12 @@ if (len(baseTabular) != 0) & (len(altrTabular) != 0):
             percentCover = 0
             amountArea = 0
             outputTabularChange.loc[len(outputTabularChange.index)] = [int(transition[0]), int(transition[1]), float(amountArea), float(percentCover)]
-    # Change movementTypesID string to class
-    movementStringToClass = pd.DataFrame({'movementTypesID': movementTypeClasses.movementTypesId,
-                                        'Name': movementTypeClasses.Name})
-    dS2C = movementStringToClass.set_index('Name').to_dict()
-    diffSummary = diffSummary.replace(dS2C['movementTypesID'])
     # Change movementTypesID class to string
     movementClassToString = pd.DataFrame({'classID': movementTypeClasses.classID.astype(float),
                                         'Name': movementTypeClasses.Name})
     dC2S = movementClassToString.set_index('classID').to_dict()
     outputTabularChange = outputTabularChange.replace(dC2S['Name'])
     # Save outputs to SyncroSim Library
-    myParentScenario.save_datasheet(name = "omniscapeImpact_outputTabularDifferences", data = diffSummary)
     myParentScenario.save_datasheet(name = "omniscapeImpact_outputTabularChange", data = outputTabularChange)
 
 
