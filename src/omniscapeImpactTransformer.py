@@ -31,8 +31,12 @@ myLibrary = ps.Library()
 myProject = myLibrary.projects(pid = 1) 
 myScenarioID = e.scenario_id.item()
 myScenario = myLibrary.scenarios(myScenarioID)
-myScenarioParentID = int(myScenario.parent_id)
-myParentScenario = myLibrary.scenarios(sid = myScenarioParentID)
+
+if pd.isna(myScenario.parent_id):
+    myParentScenario = myScenario  # Use self as parent if no parent exists
+else:
+    myScenarioParentID = int(myScenario.parent_id)
+    myParentScenario = myLibrary.scenarios(sid = myScenarioParentID)
 
 # Create directory, if applicable
 outputCategoryPath = os.path.join(wrkDir, "Scenario-" + repr(myScenarioID), "omniscapeImpact_outputSpatialCategory")
