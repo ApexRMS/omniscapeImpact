@@ -10,7 +10,7 @@ import sys
 
 from helperFunctions import (validateNodataFootprint, validateSameGrid, nodataMask,
                              sameCategoryThresholds, alignCategorySummaries,
-                             safeProgressBar, safeUpdateRunLog)
+                             chooseComparisonScenarios, safeProgressBar, safeUpdateRunLog)
 from constants import NODATA_VALUE
 
 # Set up -----------------------------------------------------------------------
@@ -47,7 +47,6 @@ if os.path.exists(outputOverallPath) == False:
 
 # Input datasheets
 movementTypeClasses = myProject.datasheets(name = "omniscape_movementTypes", include_key = True)
-differenceScenarios = myScenario.datasheets(name = "omniscapeImpact_differenceScenarios")
 
 
 
@@ -56,8 +55,20 @@ differenceScenarios = myScenario.datasheets(name = "omniscapeImpact_differenceSc
 if movementTypeClasses.empty:
     sys.exit("'Category Thresholds' are required.")
 
-if (len(differenceScenarios.Baseline) == 0) | (len(differenceScenarios.Alternative) == 0):
-    sys.exit("'Baseline Scenario ID' and 'Alternative Scenario ID' are required.")
+
+
+# Identify the Scenarios to compare from the dependencies -----------------------
+
+# The two omniscape Scenarios to compare are supplied as dependencies of this
+# Scenario (drag the Scenarios onto its Dependencies folder in SyncroSim
+# Studio): first the Baseline, then the Alternative. Dependencies belong to the
+# parent Scenario, so they are read from there.
+
+dependencyTable = myParentScenario.dependencies
+
+baselineID, alternativeID, dependencyMessage = chooseComparisonScenarios(dependencyTable)
+
+safeUpdateRunLog(dependencyMessage)
 
 
 
@@ -65,14 +76,14 @@ if (len(differenceScenarios.Baseline) == 0) | (len(differenceScenarios.Alternati
 
 # Detect if Parent or Result Scenario IDs
 allScenarios = myProject.scenarios(optional = True)
-baseScenarioTable = allScenarios[allScenarios.ScenarioId == int(differenceScenarios.Baseline[0])]
-altrScenarioTable = allScenarios[allScenarios.ScenarioId == int(differenceScenarios.Alternative[0])]
+baseScenarioTable = allScenarios[allScenarios.ScenarioId == baselineID]
+altrScenarioTable = allScenarios[allScenarios.ScenarioId == alternativeID]
 
 # Load Results Scenario for the baseline scenario
 if "Yes" in np.unique(baseScenarioTable.IsResult):
-    baseScenario = myLibrary.scenarios(int(differenceScenarios.Baseline[0]))
+    baseScenario = myLibrary.scenarios(baselineID)
 else:
-    baseScenarios = allScenarios[allScenarios.ParentId == int(differenceScenarios.Baseline[0])]
+    baseScenarios = allScenarios[allScenarios.ParentId == baselineID]
     if baseScenarios.empty:
         sys.exit("No results were found for the Baseline Scenario.")
     else:
@@ -81,9 +92,9 @@ else:
 
 # Load Results Scenario for the alternative scenario
 if "Yes" in np.unique(altrScenarioTable.IsResult):
-    altrScenario = myLibrary.scenarios(int(differenceScenarios.Alternative[0]))
+    altrScenario = myLibrary.scenarios(alternativeID)
 else:
-    altrScenarios = allScenarios[allScenarios.ParentId == int(differenceScenarios.Alternative[0])]
+    altrScenarios = allScenarios[allScenarios.ParentId == alternativeID]
     if altrScenarios.empty:
         sys.exit("No results were found for the Alternative Scenario.")
     else:

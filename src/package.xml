@@ -5,10 +5,10 @@
 
   <!--Scenario Datasheets-->
 
-  <dataSheet name="differenceScenarios" displayName="Scenarios to Compare" isSingleRow="True">
-    <column name="Baseline" displayName="Baseline Scenario ID" dataType="Integer" validationType="WholeNumber" validationCondition="None" isOptional="False" allowDbNull="False" />
-    <column name="Alternative" displayName="Alternative Scenario ID" dataType="Integer" validationType="WholeNumber" validationCondition="None" isOptional="False" allowDbNull="False" />
-  </dataSheet>
+  <!-- The Scenarios to compare are supplied as Scenario dependencies (first the
+       Baseline, then the Alternative) rather than typed in by ID. The former
+       'differenceScenarios' (Scenarios to Compare) datasheet was removed in 2.1.0;
+       see updates/update-2.1.xml. -->
 
   <dataSheet name="outputSpatialOverall" displayName="Overall" isSingleRow="True">
     <column name="overallCurrentDifferenceRaster" displayName="Normalized current difference" dataType="String" isExternalFile="True" externalFileFilter="GeoTIFF Files (*.tif)|*.tif|All Files (*.*)|*.*" isRaster="True" />
@@ -53,7 +53,6 @@
     <dataSheet name="outputTabularDifferences" type="Output" />
     <dataSheet name="outputTabularChange" type="Output" />
     <dataSheet name="outputSpatialOverall" type="Output" />
-    <dataSheet name="differenceScenarios" type="Input" />
     <dataSheet name="outputSpatialCategory" type="Output" />
   </transformer>
 
@@ -61,7 +60,6 @@
 
   <layout type="Scenario">
     <group name="Impact0Assessment" displayName="Impact Assessment">
-      <item name="differenceScenarios" />
       <group name="Results" displayName="Results">
         <group name="Spatial" displayName="Spatial">
           <item name="outputSpatialOverall" />

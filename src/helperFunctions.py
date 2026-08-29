@@ -119,6 +119,52 @@ def validateSameGrid(baseSource, altrSource, rasterLabel):
             "resolution before they can be compared.")
 
 
+def chooseComparisonScenarios(dependencyTable):
+    """Choose the Baseline and Alternative Scenarios from a dependency table.
+
+    The Scenarios to compare are read from the Scenario's dependencies rather
+    than typed in by ID. The table is the DataFrame returned by pysyncrosim's
+    Scenario.dependencies property (columns Id, Name, Priority, ordered by
+    priority, where priority 1 is the first dependency added).
+
+    Convention: the FIRST dependency is the Baseline and the SECOND is the
+    Alternative. If more than two dependencies are present, the first two are
+    used and the rest are ignored with a warning.
+
+    Returns (baselineId, alternativeId, message) where message describes the
+    choice for the run log, including any ignored dependencies.
+    """
+    nDependencies = len(dependencyTable)
+
+    if nDependencies < 2:
+        found = ("none were found." if nDependencies == 0 else
+                 "only 1 was found: '" + str(dependencyTable.Name.iloc[0]) + "'.")
+        sys.exit(
+            "The Connectivity Impact Assessment requires exactly 2 Scenario "
+            "dependencies, but " + found + " Add the two omniscape Scenarios to "
+            "compare as dependencies of this Scenario: first the Baseline, then "
+            "the Alternative.")
+
+    ordered = dependencyTable.sort_values(by = "Priority").reset_index(drop = True)
+
+    baselineId = int(ordered.Id.iloc[0])
+    alternativeId = int(ordered.Id.iloc[1])
+
+    message = ("Comparing dependencies: Baseline = '" + str(ordered.Name.iloc[0])
+               + "' (Scenario ID " + repr(baselineId) + "), Alternative = '"
+               + str(ordered.Name.iloc[1]) + "' (Scenario ID "
+               + repr(alternativeId) + "). To swap them, reorder the "
+               "dependencies.")
+
+    if nDependencies > 2:
+        ignoredNames = ", ".join("'" + str(n) + "'" for n in ordered.Name.iloc[2:])
+        message += (" WARNING: " + repr(nDependencies) + " dependencies were "
+                    "found but only the first 2 are compared. Ignored: "
+                    + ignoredNames + ".")
+
+    return baselineId, alternativeId, message
+
+
 def validateOneRowPerCategory(tabularSummary, scenarioLabel):
     """Exit unless each connectivity category appears exactly once.
 
