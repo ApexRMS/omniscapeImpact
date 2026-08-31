@@ -1,12 +1,5 @@
 <?xml version="1.0" encoding="utf-8" ?>
-<update comment="Update to omniscapeImpact 2.1 that replaces the 'Scenarios to Compare' datasheet with Scenario dependencies">
-
-    <!-- The Scenarios to compare are now supplied as Scenario dependencies
-         (first the Baseline, then the Alternative) rather than typed in by ID.
-         Drop the obsolete datasheet table. NOTE: existing impact Scenarios must
-         be reconfigured by adding their two omniscape Scenarios as dependencies;
-         the IDs previously stored in this table are not migrated because
-         dependencies cannot be created from an update script. -->
+<update comment="Update to omniscapeImpact 2.1 that replaces the Scenarios to Compare datasheet with Scenario dependencies">
     <action code="Exec" condition="TableExists" criteria="omniscapeImpact_differenceScenarios">
         <item>DROP TABLE omniscapeImpact_differenceScenarios</item>
     </action>

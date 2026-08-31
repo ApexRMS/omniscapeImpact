@@ -90,7 +90,7 @@ def validateSameGrid(baseSource, altrSource, rasterLabel):
     # Dimensions
     if baseSource.shape != altrSource.shape:
         sys.exit(
-            "The Baseline and Alternative '" + rasterLabel + "' rasters have "
+            "The '" + rasterLabel + "' rasters being compared have "
             "different dimensions (" + repr(baseSource.shape) + " and "
             + repr(altrSource.shape) + "). Both Scenarios must be run over the "
             "same extent and resolution before they can be compared.")
@@ -98,7 +98,7 @@ def validateSameGrid(baseSource, altrSource, rasterLabel):
     # Coordinate reference system
     if baseSource.crs != altrSource.crs:
         sys.exit(
-            "The Baseline and Alternative '" + rasterLabel + "' rasters use "
+            "The '" + rasterLabel + "' rasters being compared use "
             "different coordinate reference systems (" + repr(baseSource.crs)
             + " and " + repr(altrSource.crs) + "). Both Scenarios must use the "
             "same projection before they can be compared.")
@@ -111,7 +111,7 @@ def validateSameGrid(baseSource, altrSource, rasterLabel):
 
     if any(abs(b - a) > tolerance for b, a in zip(baseTransform, altrTransform)):
         sys.exit(
-            "The Baseline and Alternative '" + rasterLabel + "' rasters are not "
+            "The '" + rasterLabel + "' rasters being compared are not "
             "aligned to the same grid. Their pixel origins or resolutions differ "
             "by more than " + repr(tolerance) + " map units (Baseline "
             + repr(baseTransform) + ", Alternative " + repr(altrTransform)
@@ -265,7 +265,7 @@ def validateNodataFootprint(baseMask, altrMask, rasterLabel):
 
     if nDisagree > 0:
         sys.exit(
-            "The Baseline and Alternative '" + rasterLabel + "' rasters "
+            "The '" + rasterLabel + "' rasters "
             "disagree about which pixels hold valid data (" + repr(nDisagree)
             + " pixels differ). Both Scenarios must cover the same valid area "
             "before they can be compared. This usually means the two Scenarios "

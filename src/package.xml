@@ -1,14 +1,7 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <package name="omniscapeImpact" displayName="Omniscape Impact" description="Calculates changes in connectivity categories from a baseline" version="2.1.0" url="https://apexrms.github.io/omniscape/tutorials/omniscapeImpact" minSyncroSimVersion="3.1.0">
 
-  <builtFor package="omniscape" version="2.7.0" />
-
-  <!--Scenario Datasheets-->
-
-  <!-- The Scenarios to compare are supplied as Scenario dependencies (first the
-       Baseline, then the Alternative) rather than typed in by ID. The former
-       'differenceScenarios' (Scenarios to Compare) datasheet was removed in 2.1.0;
-       see updates/update-2.1.xml. -->
+  <builtFor package="omniscape" version="2.8.0" />
 
   <dataSheet name="outputSpatialOverall" displayName="Overall" isSingleRow="True">
     <column name="overallCurrentDifferenceRaster" displayName="Normalized current difference" dataType="String" isExternalFile="True" externalFileFilter="GeoTIFF Files (*.tif)|*.tif|All Files (*.*)|*.*" isRaster="True" />
@@ -38,11 +31,9 @@
     <column name="dissimilarity" displayName="Dissimilarity" dataType="Double" validationType="Decimal" validationCondition="None" />
   </dataSheet>
 
-  <!--Transformers-->
-
-  <transformer 
+  <transformer
     name="omniscapeImpactTransformer" 
-    displayName="3 - Connectivity Impact Assessment" 
+    displayName="4 - Connectivity Impact Assessment"
     isRunnable="True" 
     programName="python" 
     programArguments="omniscapeImpactTransformer.py" 
@@ -55,8 +46,6 @@
     <dataSheet name="outputSpatialOverall" type="Output" />
     <dataSheet name="outputSpatialCategory" type="Output" />
   </transformer>
-
-  <!--Layouts-->
 
   <layout type="Scenario">
     <group name="Impact0Assessment" displayName="Impact Assessment">
@@ -90,7 +79,6 @@
     </group>
   </layout>
 
-  <!--Update Provider-->
   <updateProvider className="SyncroSim.Core.XMLUpdateProvider" classAssembly="SyncroSim.Core">
   </updateProvider>
 
