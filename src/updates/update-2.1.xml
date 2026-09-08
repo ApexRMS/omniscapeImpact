@@ -1,7 +1,18 @@
 <?xml version="1.0" encoding="utf-8" ?>
-<update comment="Update to omniscapeImpact 2.1 that replaces the Scenarios to Compare datasheet with Scenario dependencies">
+<update comment="Update to omniscapeImpact 2.1 that replaces the Scenarios to Compare datasheet with Scenario dependencies and allows ensemble Scenarios to be compared">
+
+    <!-- The two Scenarios to compare are now read from the Scenario's
+         dependencies rather than named in a datasheet of their own. -->
     <action code="Exec" condition="TableExists" criteria="omniscapeImpact_differenceScenarios">
         <item>DROP TABLE omniscapeImpact_differenceScenarios</item>
+    </action>
+
+    <!-- Hold the ensemble difference raster in its own column rather than
+         alongside the single-model normalized current difference. The two are
+         different quantities, and an existing Scenario's map layer must keep
+         naming the one it actually shows. -->
+    <action code="Exec" condition="TableExists" criteria="omniscapeImpact_outputSpatialOverall">
+        <item>ALTER TABLE omniscapeImpact_outputSpatialOverall ADD COLUMN overallEnsembleDifferenceRaster TEXT</item>
     </action>
 
 </update>

@@ -9,8 +9,9 @@ import itertools
 import sys
 
 from helperFunctions import (validateNodataFootprint, validateSameGrid, nodataMask,
-                             sameCategoryThresholds, alignCategorySummaries,
-                             chooseComparisonScenarios, safeProgressBar, safeUpdateRunLog)
+                             categoriesAreComparable, alignCategorySummaries,
+                             chooseComparisonScenarios, resolveConnectivitySurface,
+                             validateComparableSurfaces, safeProgressBar, safeUpdateRunLog)
 from constants import NODATA_VALUE
 
 # Set up -----------------------------------------------------------------------
@@ -104,6 +105,8 @@ else:
 # Load input datasheets for each scenario
 baseOmniscapeOutput = baseScenario.datasheets(name = "omniscape_outputSpatial", show_full_paths = True)
 altrOmniscapeOutput = altrScenario.datasheets(name = "omniscape_outputSpatial", show_full_paths = True)
+baseEnsembleOutput = baseScenario.datasheets(name = "omniscape_outputSpatialEnsemble", show_full_paths = True)
+altrEnsembleOutput = altrScenario.datasheets(name = "omniscape_outputSpatialEnsemble", show_full_paths = True)
 baseRasterPath = baseScenario.datasheets(name = "omniscape_outputSpatialMovement", show_full_paths = True)
 altrRasterPath = altrScenario.datasheets(name = "omniscape_outputSpatialMovement", show_full_paths = True)
 baseTabular = baseScenario.datasheets(name = "omniscape_outputTabularReclassification")
@@ -113,19 +116,39 @@ altrThresholds = altrScenario.datasheets(name = "omniscape_reclassificationThres
 
 
 
+# Choose the connectivity surface to compare -----------------------------------
+
+# A Scenario carries either a single-model 'Normalized current' raster from
+# omniscape's 'Omniscape' transformer or an 'Ensemble connectivity' raster from
+# its 'Ensemble Connectivity' transformer, which combines several Scenarios
+# (typically one per species). Both are continuous connectivity surfaces on the
+# same grid, so an impact assessment reads whichever one each Scenario has -
+# provided both have the same one, since the two are not interchangeable.
+
+baseSurfacePath, baseSurfaceKind, baseSurfaceLabel = resolveConnectivitySurface(
+    baseOmniscapeOutput, baseEnsembleOutput, "Baseline")
+altrSurfacePath, altrSurfaceKind, altrSurfaceLabel = resolveConnectivitySurface(
+    altrOmniscapeOutput, altrEnsembleOutput, "Alternative")
+
+validateComparableSurfaces(baseSurfaceKind, altrSurfaceKind,
+                           baseSurfaceLabel, altrSurfaceLabel)
+
+surfaceKind = baseSurfaceKind
+surfaceLabel = baseSurfaceLabel
+
+safeUpdateRunLog("Comparing '" + surfaceLabel + "' rasters: Baseline "
+                 + os.path.basename(baseSurfacePath) + ", Alternative "
+                 + os.path.basename(altrSurfacePath) + ".")
+
+
+
 # Validation for baseline & alternative scenarios results ----------------------
-
-if baseOmniscapeOutput.normalizedCumCurrmap[0] != baseOmniscapeOutput.normalizedCumCurrmap[0]:
-    sys.exit("'Normalized current' raster is required for the Baseline Scenario.")
-
-if altrOmniscapeOutput.normalizedCumCurrmap[0] != altrOmniscapeOutput.normalizedCumCurrmap[0]:
-    sys.exit("'Normalized current' raster is required for the Alternative Scenario.")
 
 if (baseRasterPath.empty) | (altrRasterPath.empty):
     if (baseRasterPath.empty) & (altrRasterPath.empty):
-        safeUpdateRunLog("'Connectivity categories' raster files are missing. Therefore, only the 'Normalized current' raster files were used.") 
+        safeUpdateRunLog("'Connectivity categories' raster files are missing. Therefore, only the '" + surfaceLabel + "' raster files were used.")
     else:
-        safeUpdateRunLog("The 'Connectivity categories' raster for one of the Scenarios was missing. Therefore, only the 'Normalized current' raster files were used.") 
+        safeUpdateRunLog("The 'Connectivity categories' raster for one of the Scenarios was missing. Therefore, only the '" + surfaceLabel + "' raster files were used.")
 
 if (baseTabular.empty) | (altrTabular.empty):
     if (baseTabular.empty) & (altrTabular.empty):
@@ -143,35 +166,34 @@ if (baseTabular.empty) | (altrTabular.empty):
 # before anything is written, so that a failed check cannot leave a partial set
 # of results behind.
 
-hasNormalizedCurrent = ((baseOmniscapeOutput.normalizedCumCurrmap[0] == baseOmniscapeOutput.normalizedCumCurrmap[0])
-                        & (altrOmniscapeOutput.normalizedCumCurrmap[0] == altrOmniscapeOutput.normalizedCumCurrmap[0]))
 hasCategories = (len(baseRasterPath) != 0) & (len(altrRasterPath) != 0)
 
-# Connectivity categories are only comparable if both Scenarios were classified
-# using the same thresholds. If they were not, the category rasters describe
-# different things, so every category-derived output is skipped. The
-# 'Normalized current' comparison is unaffected and still runs.
-if hasCategories and not sameCategoryThresholds(baseThresholds, altrThresholds):
-    hasCategories = False
-    safeUpdateRunLog(
-        "The Baseline and Alternative Scenarios use different 'Category Thresholds'. "
-        "Connectivity categories are therefore not comparable between them, and all "
-        "connectivity category outputs have been skipped. Only the 'Normalized "
-        "current' comparison was calculated.")
+# Connectivity categories are only comparable if both Scenarios cut the surface
+# up at the same places. If they did not, the category rasters describe
+# different things, so every category-derived output is skipped. The continuous
+# surface comparison is unaffected and still runs.
+if hasCategories:
+    categoriesComparable, categoriesReason = categoriesAreComparable(
+        baseTabular, altrTabular, baseThresholds, altrThresholds)
 
-if hasNormalizedCurrent:
-    # Load normalized current rasters
-    baseNormRaster = rasterio.open(baseOmniscapeOutput.normalizedCumCurrmap[0])
-    altrNormRaster = rasterio.open(altrOmniscapeOutput.normalizedCumCurrmap[0])
-    validateSameGrid(baseNormRaster, altrNormRaster, "Normalized current")
-    # Read as float so that the subtraction below cannot wrap around
-    baseNormData = baseNormRaster.read().astype(float)
-    altrNormData = altrNormRaster.read().astype(float)
-    # Identify no-data pixels from the raster itself rather than assuming -9999
-    baseNormMask = nodataMask(baseNormRaster, baseNormData)
-    altrNormMask = nodataMask(altrNormRaster, altrNormData)
-    validateNodataFootprint(baseNormMask, altrNormMask, "Normalized current")
-    normMask = baseNormMask | altrNormMask
+    if not categoriesComparable:
+        hasCategories = False
+        safeUpdateRunLog(
+            categoriesReason + " All connectivity category outputs have been "
+            "skipped. Only the '" + surfaceLabel + "' comparison was calculated.")
+
+# Load the continuous connectivity surfaces
+baseNormRaster = rasterio.open(baseSurfacePath)
+altrNormRaster = rasterio.open(altrSurfacePath)
+validateSameGrid(baseNormRaster, altrNormRaster, surfaceLabel)
+# Read as float so that the subtraction below cannot wrap around
+baseNormData = baseNormRaster.read().astype(float)
+altrNormData = altrNormRaster.read().astype(float)
+# Identify no-data pixels from the raster itself rather than assuming -9999
+baseNormMask = nodataMask(baseNormRaster, baseNormData)
+altrNormMask = nodataMask(altrNormRaster, altrNormData)
+validateNodataFootprint(baseNormMask, altrNormMask, surfaceLabel)
+normMask = baseNormMask | altrNormMask
 
 if hasCategories:
     # Load connectivity category rasters
@@ -192,31 +214,39 @@ if hasCategories:
 
 safeProgressBar(message="Calculating spatial differences", report_type="message")
 
-# Normalized current -----------------------------
+# Continuous connectivity surface ----------------
 
-if hasNormalizedCurrent:
-    # Neutralise no-data pixels before the subtraction so that they cannot
-    # contribute an extreme value or propagate NaN into the result
-    baseNormClean = np.where(normMask, 0.0, baseNormData)
-    altrNormClean = np.where(normMask, 0.0, altrNormData)
-    # Calculate the overall impact of the intervention as absolute change
-    normDifference = altrNormClean - baseNormClean
-    # Set NA back to -9999
-    normDifference[normMask] = NODATA_VALUE
-    # Save output raster to file, declaring the no-data value explicitly so that
-    # it is not inherited from the input raster (which may not declare one)
-    outMeta = baseNormRaster.meta.copy()
-    outMeta.update(dtype = "float32", nodata = NODATA_VALUE)
-    with rasterio.open(
-        os.path.join(outputOverallPath, "normalizedCurrentImpact.tif"),
-        mode="w", **outMeta) as outputRaster:
-        outputRaster.write(normDifference.astype("float32"))
-    # Load empty output datasheet
-    outputSpatialOverall = myScenario.datasheets(name = "omniscapeImpact_outputSpatialOverall")
-    # Save path the to file
-    outputSpatialOverall.overallCurrentDifferenceRaster = pd.Series(os.path.join(outputOverallPath, "normalizedCurrentImpact.tif"))
-    # Save outputs to SyncroSim Library
-    myParentScenario.save_datasheet(name = "omniscapeImpact_outputSpatialOverall", data = outputSpatialOverall)
+# Each kind of surface gets its own file name and its own output column, so
+# that the map legend names the quantity actually being shown and an ensemble
+# comparison is never mistaken for a single-model one.
+if surfaceKind == "ensemble":
+    surfaceFileName = "ensembleConnectivityImpact.tif"
+    surfaceOutputColumn = "overallEnsembleDifferenceRaster"
+else:
+    surfaceFileName = "normalizedCurrentImpact.tif"
+    surfaceOutputColumn = "overallCurrentDifferenceRaster"
+
+# Neutralise no-data pixels before the subtraction so that they cannot
+# contribute an extreme value or propagate NaN into the result
+baseNormClean = np.where(normMask, 0.0, baseNormData)
+altrNormClean = np.where(normMask, 0.0, altrNormData)
+# Calculate the overall impact of the intervention as absolute change
+normDifference = altrNormClean - baseNormClean
+# Set NA back to -9999
+normDifference[normMask] = NODATA_VALUE
+# Save output raster to file, declaring the no-data value explicitly so that
+# it is not inherited from the input raster (which may not declare one)
+outMeta = baseNormRaster.meta.copy()
+outMeta.update(dtype = "float32", nodata = NODATA_VALUE)
+surfaceOutputPath = os.path.join(outputOverallPath, surfaceFileName)
+with rasterio.open(surfaceOutputPath, mode="w", **outMeta) as outputRaster:
+    outputRaster.write(normDifference.astype("float32"))
+# Load empty output datasheet
+outputSpatialOverall = myScenario.datasheets(name = "omniscapeImpact_outputSpatialOverall")
+# Save path the to file
+outputSpatialOverall[surfaceOutputColumn] = pd.Series(surfaceOutputPath)
+# Save outputs to SyncroSim Library
+myParentScenario.save_datasheet(name = "omniscapeImpact_outputSpatialOverall", data = outputSpatialOverall)
 
 
 # Connectivity categories ------------------------

@@ -165,6 +165,82 @@ def chooseComparisonScenarios(dependencyTable):
     return baselineId, alternativeId, message
 
 
+def resolveConnectivitySurface(omniscapeOutput, ensembleOutput, scenarioLabel):
+    """Choose which continuous connectivity surface represents a Scenario.
+
+    A Scenario reaches this package by one of two routes. Run through
+    omniscape's 'Omniscape' transformer it produces a 'Normalized current'
+    raster; run through 'Ensemble Connectivity' it produces an ensemble raster
+    combining several other Scenarios. Either can then be categorized, so
+    either can be compared - but only against the same kind of surface.
+
+    The ensemble wins when both are present, matching how omniscape's own
+    'Categorize Connectivity Output' transformer chooses: a Scenario that ran
+    the ensemble is asking for its combined surface to be used, not whatever
+    single-model output happens to sit alongside it.
+
+    Returns (path, kind, label) where kind is "ensemble" or "normalizedCurrent"
+    and label is the datasheet column's display name, for messages.
+    """
+    ensemblePath = firstPopulatedValue(ensembleOutput, "ensembleRaster")
+
+    if ensemblePath is not None:
+        return str(ensemblePath), "ensemble", "Ensemble connectivity"
+
+    normalizedPath = firstPopulatedValue(omniscapeOutput, "normalizedCumCurrmap")
+
+    if normalizedPath is not None:
+        return str(normalizedPath), "normalizedCurrent", "Normalized current"
+
+    sys.exit(
+        "No connectivity surface was found for the " + scenarioLabel + " Scenario. "
+        "Run omniscape's 'Omniscape' transformer to produce a 'Normalized current' "
+        "raster, or 'Ensemble Connectivity' to produce an 'Ensemble connectivity' "
+        "raster, before comparing the Scenario.")
+
+
+def firstPopulatedValue(datasheet, column):
+    """Return a populated value from a single-row output datasheet, or None.
+
+    A single-row output datasheet that a transformer never wrote comes back
+    either with no rows at all or with the column present but null, and which
+    of the two you get depends on the Scenario's history rather than on
+    anything meaningful. Both mean the same thing here.
+    """
+    if datasheet is None or datasheet.empty or column not in datasheet.columns:
+        return None
+
+    value = datasheet[column].iloc[0]
+
+    if value is None or value != value:               # NaN
+        return None
+
+    return value
+
+
+def validateComparableSurfaces(baseKind, altrKind, baseLabel, altrLabel):
+    """Exit unless the two Scenarios' connectivity surfaces are the same kind.
+
+    An ensemble surface and a single-model normalized current measure different
+    quantities: one is a weighted combination across several Scenarios, on a
+    scale set by how many went into it and how they were weighted, the other is
+    one model's current normalized against its own flow potential. Subtracting
+    one from the other returns a number for every pixel, but that number is the
+    difference between two different measurements rather than the impact of an
+    intervention - and nothing downstream could tell the two apart.
+    """
+    if baseKind == altrKind:
+        return
+
+    sys.exit(
+        "The two Scenarios being compared produced different kinds of "
+        "connectivity surface: the Baseline has '" + baseLabel + "' and the "
+        "Alternative has '" + altrLabel + "'. These measure different "
+        "quantities, so the difference between them would not describe an "
+        "impact. Compare two ensemble Scenarios with each other, or two "
+        "single-model Scenarios with each other.")
+
+
 def validateOneRowPerCategory(tabularSummary, scenarioLabel):
     """Exit unless each connectivity category appears exactly once.
 
@@ -252,6 +328,114 @@ def sameCategoryThresholds(baseThresholds, altrThresholds):
         by = thresholdColumns).reset_index(drop = True)
 
     return baseSorted.equals(altrSorted)
+
+
+def sameCategoryBreaks(baseTabular, altrTabular):
+    """Compare the break values each Scenario actually used to categorize.
+
+    'Category Thresholds' record what was *requested*; omniscape 2.8's
+    minBreakValue / maxBreakValue record what those thresholds *worked out to*.
+    The two diverge whenever Threshold type is Quantile, because a quantile is
+    a position in the Scenario's own distribution rather than a fixed value. A
+    quantile of 0.9 means "the top tenth of this Scenario", so two Scenarios
+    asking for identical quantiles get identical threshold datasheets and
+    entirely different cut-offs.
+
+    That matters most for exactly the case quantiles were added for. Categories
+    defined by rank rather than value move with the surface they describe, so a
+    'High' category stays the top tenth of the landscape however much
+    connectivity the intervention removed, and the comparison reports a change
+    close to zero no matter what happened.
+
+    Only the categories present in both Scenarios are compared: a category
+    absent from one occupies no pixels there, which says nothing about whether
+    the two agree on how connectivity was cut up.
+
+    Returns (comparable, reason). comparable is None when the break values are
+    unavailable - a library written before omniscape 2.8, whose Scenarios could
+    only have used Value mode - leaving the caller to fall back to comparing the
+    requested thresholds.
+    """
+    breakColumns = ["minBreakValue", "maxBreakValue"]
+
+    if baseTabular is None or altrTabular is None:
+        return None, None
+
+    if baseTabular.empty or altrTabular.empty:
+        return None, None
+
+    if not set(breakColumns).issubset(baseTabular.columns):
+        return None, None
+
+    if not set(breakColumns).issubset(altrTabular.columns):
+        return None, None
+
+    keyColumns = ["movementTypesID"] + breakColumns
+    baseBreaks = baseTabular[keyColumns].dropna()
+    altrBreaks = altrTabular[keyColumns].dropna()
+
+    if baseBreaks.empty or altrBreaks.empty:
+        return None, None
+
+    shared = baseBreaks.merge(altrBreaks, on = "movementTypesID",
+                              suffixes = ("Base", "Altr"))
+
+    if shared.empty:
+        return None, None
+
+    # Both sides are computed from raster data, so compare within floating-point
+    # tolerance rather than for exact equality
+    differing = shared[
+        ~(np.isclose(shared.minBreakValueBase, shared.minBreakValueAltr,
+                     rtol = 1e-9, atol = 1e-12)
+          & np.isclose(shared.maxBreakValueBase, shared.maxBreakValueAltr,
+                       rtol = 1e-9, atol = 1e-12))]
+
+    if differing.empty:
+        return True, None
+
+    example = differing.iloc[0]
+    reason = (
+        "The Baseline and Alternative Scenarios categorized connectivity at "
+        "different break values, so their connectivity categories do not "
+        "describe the same ranges. Connectivity category " + repr(int(example.movementTypesID))
+        + ", for instance, covers " + repr(float(example.minBreakValueBase)) + " to "
+        + repr(float(example.maxBreakValueBase)) + " in the Baseline but "
+        + repr(float(example.minBreakValueAltr)) + " to "
+        + repr(float(example.maxBreakValueAltr)) + " in the Alternative ("
+        + repr(len(differing)) + " of " + repr(len(shared)) + " shared categories "
+        "differ). This is what happens when 'Threshold type' is set to Quantile: "
+        "each Scenario's breaks are computed from its own distribution, so the "
+        "categories move with the surface and a comparison between them would "
+        "understate the impact. Set 'Threshold type' to Value in both Scenarios, "
+        "using the same 'Category Thresholds', to compare connectivity categories.")
+
+    return False, reason
+
+
+def categoriesAreComparable(baseTabular, altrTabular, baseThresholds, altrThresholds):
+    """Decide whether the two Scenarios' connectivity categories can be compared.
+
+    Prefers the break values actually used, and falls back to the requested
+    'Category Thresholds' when those are not recorded. The realized breaks are
+    the stronger test: identical thresholds do not imply identical breaks under
+    Quantile mode, while identical breaks mean the categories cut the surface at
+    the same places however they were specified.
+
+    Returns (comparable, reason), where reason explains a False for the run log.
+    """
+    comparable, reason = sameCategoryBreaks(baseTabular, altrTabular)
+
+    if comparable is not None:
+        return comparable, reason
+
+    if sameCategoryThresholds(baseThresholds, altrThresholds):
+        return True, None
+
+    return False, (
+        "The Baseline and Alternative Scenarios use different 'Category "
+        "Thresholds'. Connectivity categories are therefore not comparable "
+        "between them.")
 
 
 def validateNodataFootprint(baseMask, altrMask, rasterLabel):

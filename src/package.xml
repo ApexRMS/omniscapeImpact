@@ -5,6 +5,7 @@
 
   <dataSheet name="outputSpatialOverall" displayName="Overall" isSingleRow="True">
     <column name="overallCurrentDifferenceRaster" displayName="Normalized current difference" dataType="String" isExternalFile="True" externalFileFilter="GeoTIFF Files (*.tif)|*.tif|All Files (*.*)|*.*" isRaster="True" />
+    <column name="overallEnsembleDifferenceRaster" displayName="Ensemble connectivity difference" dataType="String" isExternalFile="True" externalFileFilter="GeoTIFF Files (*.tif)|*.tif|All Files (*.*)|*.*" isRaster="True" description="Difference in ensemble connectivity, populated when both Scenarios being compared ran omniscape's Ensemble Connectivity transformer." />
     <column name="overallDifferenceRaster" displayName="Cross-category difference" dataType="String" isExternalFile="True" externalFileFilter="GeoTIFF Files (*.tif)|*.tif|All Files (*.*)|*.*" isRaster="True" />
   </dataSheet>
 
@@ -74,6 +75,7 @@
   <layout type="Map">
     <group name="ImpactAssessment" displayName="Impact Assessment">
       <item name="outputSpatialOveralloverallCurrentDifferenceRaster" displayName="Normalized current difference" dataSheet="outputSpatialOverall" column="overallCurrentDifferenceRaster" />
+      <item name="outputSpatialOveralloverallEnsembleDifferenceRaster" displayName="Ensemble connectivity difference" dataSheet="outputSpatialOverall" column="overallEnsembleDifferenceRaster" />
       <item name="outputSpatialOveralloverallDifferenceRaster" displayName="Cross-category difference" dataSheet="outputSpatialOverall" column="overallDifferenceRaster" />
       <item name="outputSpatialCategoryperCategoryRaster" displayName="Per category difference" dataSheet="outputSpatialCategory" column="perCategoryRaster" filter="movementTypesID" />
     </group>
