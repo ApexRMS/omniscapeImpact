@@ -34,7 +34,7 @@
 
   <transformer
     name="omniscapeImpactTransformer" 
-    displayName="4 - Connectivity Impact Assessment"
+    displayName="3 - Connectivity Impact Assessment"
     isRunnable="True" 
     programName="python" 
     programArguments="omniscapeImpactTransformer.py" 
