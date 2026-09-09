@@ -438,20 +438,31 @@ def categoriesAreComparable(baseTabular, altrTabular, baseThresholds, altrThresh
         "between them.")
 
 
-def validateNodataFootprint(baseMask, altrMask, rasterLabel):
-    """Exit unless the two rasters agree on which pixels hold valid data.
+def reportNodataFootprint(baseMask, altrMask, rasterLabel):
+    """Report pixels that hold valid data in only one of the two Scenarios.
 
-    A disagreement means the two Scenarios do not cover the same valid area, so
-    any comparison between them would be measuring a change in coverage as
-    though it were a change in connectivity.
+    The two Scenarios' valid areas are allowed to differ: comparisons are made
+    over the pixels valid in BOTH (callers mask with the union of the two
+    no-data masks), so a one-sided pixel is simply excluded rather than
+    compared. It still deserves a warning, because differing coverage often
+    means the Scenarios were run over different extents, with different
+    resistance or source layers, or with different spatial tiling settings -
+    and everything excluded is invisible in the outputs.
+
+    Returns the number of one-sided pixels (0 when the footprints agree).
     """
     nDisagree = int((baseMask != altrMask).sum())
 
     if nDisagree > 0:
-        sys.exit(
-            "The '" + rasterLabel + "' rasters "
-            "disagree about which pixels hold valid data (" + repr(nDisagree)
-            + " pixels differ). Both Scenarios must cover the same valid area "
-            "before they can be compared. This usually means the two Scenarios "
-            "were run over different extents, with different resistance or "
-            "source layers, or with different spatial tiling settings.")
+        nValidUnion = int((~baseMask | ~altrMask).sum())
+        share = (100.0 * nDisagree / nValidUnion) if nValidUnion > 0 else 0.0
+        safeUpdateRunLog(
+            "WARNING: " + repr(nDisagree) + " pixels ("
+            + ("%.1f" % share) + "% of the valid area) hold data in only one "
+            "Scenario for the '" + rasterLabel + "' rasters. These pixels were "
+            "excluded from all comparisons. Differing coverage usually means "
+            "the two Scenarios were run over different extents, with different "
+            "resistance or source layers, or with different spatial tiling "
+            "settings.")
+
+    return nDisagree

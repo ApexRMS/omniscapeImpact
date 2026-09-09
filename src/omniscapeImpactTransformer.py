@@ -8,7 +8,7 @@ import numpy as np
 import itertools
 import sys
 
-from helperFunctions import (validateNodataFootprint, validateSameGrid, nodataMask,
+from helperFunctions import (reportNodataFootprint, validateSameGrid, nodataMask,
                              categoriesAreComparable, alignCategorySummaries,
                              chooseComparisonScenarios, resolveConnectivitySurface,
                              validateComparableSurfaces, safeProgressBar, safeUpdateRunLog)
@@ -161,10 +161,12 @@ if (baseTabular.empty) | (altrTabular.empty):
 # Load rasters & validate that the two Scenarios are comparable -----------------
 
 # Every output of this package is a pixel-by-pixel comparison between the two
-# Scenarios, so the rasters must describe the same grid and must agree about
-# which pixels hold valid data. Both raster pairs are loaded and checked here,
-# before anything is written, so that a failed check cannot leave a partial set
-# of results behind.
+# Scenarios, so the rasters must describe the same grid. Their valid areas are
+# allowed to differ: comparisons are made over the pixels valid in BOTH
+# Scenarios (the union of the two no-data masks), and any pixel valid in only
+# one is excluded and reported to the run log. Both raster pairs are loaded and
+# checked here, before anything is written, so that a failed grid check cannot
+# leave a partial set of results behind.
 
 hasCategories = (len(baseRasterPath) != 0) & (len(altrRasterPath) != 0)
 
@@ -192,7 +194,7 @@ altrNormData = altrNormRaster.read().astype(float)
 # Identify no-data pixels from the raster itself rather than assuming -9999
 baseNormMask = nodataMask(baseNormRaster, baseNormData)
 altrNormMask = nodataMask(altrNormRaster, altrNormData)
-validateNodataFootprint(baseNormMask, altrNormMask, surfaceLabel)
+footprintDisagreement = reportNodataFootprint(baseNormMask, altrNormMask, surfaceLabel)
 normMask = baseNormMask | altrNormMask
 
 if hasCategories:
@@ -205,7 +207,7 @@ if hasCategories:
     # Identify no-data pixels from the raster itself rather than assuming -9999
     baseCategoryMask = nodataMask(baseRaster, baseData)
     altrCategoryMask = nodataMask(altrRaster, altrData)
-    validateNodataFootprint(baseCategoryMask, altrCategoryMask, "Connectivity categories")
+    footprintDisagreement += reportNodataFootprint(baseCategoryMask, altrCategoryMask, "Connectivity categories")
     categoryMask = baseCategoryMask | altrCategoryMask
 
 
@@ -338,6 +340,16 @@ if (len(baseTabular) != 0) & (len(altrTabular) != 0):
     dS2C = movementStringToClass.set_index('Name').to_dict()
     diffSummary = diffSummary.replace(dS2C['movementTypesID'])
     myParentScenario.save_datasheet(name = "omniscapeImpact_outputTabularDifferences", data = diffSummary)
+
+    # The area and proportion figures in these tables come from omniscape and
+    # are computed over each Scenario's own valid area. When the two valid
+    # areas differ, the figures being subtracted have different denominators,
+    # unlike the raster-derived outputs, which compare only the shared area.
+    if footprintDisagreement > 0:
+        safeUpdateRunLog(
+            "NOTE: The Scenarios' valid areas differ, so the 'Differences "
+            "Summary' compares areas and proportions computed over each "
+            "Scenario's own extent, not the shared extent.")
 
 
 # The transitions summary is counted from the connectivity category rasters, so
