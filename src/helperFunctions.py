@@ -432,6 +432,12 @@ def categoriesAreComparable(baseTabular, altrTabular, baseThresholds, altrThresh
     if sameCategoryThresholds(baseThresholds, altrThresholds):
         return True, None
 
+    if baseThresholds.empty or altrThresholds.empty:
+        return False, (
+            "No 'Category Thresholds' were recorded for one or both Scenarios, "
+            "so there is no way to confirm that their connectivity categories "
+            "describe the same ranges.")
+
     return False, (
         "The Baseline and Alternative Scenarios use different 'Category "
         "Thresholds'. Connectivity categories are therefore not comparable "
