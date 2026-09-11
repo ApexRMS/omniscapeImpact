@@ -3,3 +3,5 @@
 # Package development & previous package versions
 design
 package
+
+__pycache__/
