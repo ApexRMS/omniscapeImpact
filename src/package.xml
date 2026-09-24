@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<package name="omniscapeImpact" displayName="Omniscape Impact" description="Calculates changes in connectivity categories from a baseline" version="2.1.0" url="https://apexrms.github.io/omniscape/tutorials/omniscapeImpact" minSyncroSimVersion="3.1.0">
+<package name="omniscapeImpact" displayName="Omniscape Impact" description="Calculates changes in connectivity categories from a baseline" version="2.1.1" url="https://apexrms.github.io/omniscape/tutorials/omniscapeImpact" minSyncroSimVersion="3.1.0">
 
   <builtFor package="omniscape" version="2.8.0" />
 
