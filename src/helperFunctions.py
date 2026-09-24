@@ -5,7 +5,8 @@ import pandas as pd
 import numpy as np
 import sys
 
-from constants import NODATA_VALUE, GRID_TOLERANCE_FRACTION
+from constants import (NODATA_VALUE, GRID_TOLERANCE_FRACTION,
+                       COVERAGE_COLUMN_NAMES)
 
 # Helper functions -------------------------------------------------------------
 
@@ -265,6 +266,27 @@ def validateOneRowPerCategory(tabularSummary, scenarioLabel):
             "multiprocessing.")
 
 
+def resolveCoverageColumn(tabularSummary, scenarioLabel):
+    """Return the name of the category coverage column in a Scenario's summary.
+
+    omniscape 2.8 renamed this column from 'percentCover' to 'proportionCover'.
+    The figure was a proportion between 0 and 1 under both names - only the
+    label changed - so whichever one a Scenario's results carry can be read and
+    compared directly, without rescaling.
+    """
+    for columnName in COVERAGE_COLUMN_NAMES:
+        if columnName in tabularSummary.columns:
+            return columnName
+
+    sys.exit(
+        "The " + scenarioLabel + " Scenario's 'Connectivity Categories "
+        "Summary' has no category coverage column - none of "
+        + ", ".join(repr(c) for c in COVERAGE_COLUMN_NAMES) + " is present, "
+        "only " + ", ".join(repr(c) for c in tabularSummary.columns) + ". This "
+        "Scenario's results were produced by a version of omniscape that this "
+        "package cannot read.")
+
+
 def alignCategorySummaries(baseTabular, altrTabular):
     """Join the two Scenarios' category summaries on category, not row order.
 
@@ -282,23 +304,34 @@ def alignCategorySummaries(baseTabular, altrTabular):
     validateOneRowPerCategory(baseTabular, "Baseline")
     validateOneRowPerCategory(altrTabular, "Alternative")
 
-    summaryColumns = ["movementTypesID", "amountArea", "percentCover"]
+    # Each Scenario's coverage column is resolved separately and renamed to a
+    # shared internal name, so that two Scenarios run under omniscape versions
+    # either side of the 'percentCover' / 'proportionCover' rename still align
+    baseCoverage = resolveCoverageColumn(baseTabular, "Baseline")
+    altrCoverage = resolveCoverageColumn(altrTabular, "Alternative")
 
-    merged = baseTabular[summaryColumns].merge(
-        altrTabular[summaryColumns],
+    baseSummary = baseTabular[
+        ["movementTypesID", "amountArea", baseCoverage]].rename(
+            columns = {baseCoverage: "coverage"})
+    altrSummary = altrTabular[
+        ["movementTypesID", "amountArea", altrCoverage]].rename(
+            columns = {altrCoverage: "coverage"})
+
+    merged = baseSummary.merge(
+        altrSummary,
         on = "movementTypesID",
         how = "outer",
         suffixes = ("Base", "Altr"),
         validate = "one_to_one")
 
     # A category absent from a Scenario covers no area and no proportion of it
-    merged = merged.fillna({"amountAreaBase": 0.0, "percentCoverBase": 0.0,
-                            "amountAreaAltr": 0.0, "percentCoverAltr": 0.0})
+    merged = merged.fillna({"amountAreaBase": 0.0, "coverageBase": 0.0,
+                            "amountAreaAltr": 0.0, "coverageAltr": 0.0})
 
     return pd.DataFrame({
         "movementTypesID": merged.movementTypesID,
         "amountAreaDifference": merged.amountAreaAltr - merged.amountAreaBase,
-        "percentCoverDifference": merged.percentCoverAltr - merged.percentCoverBase})
+        "percentCoverDifference": merged.coverageAltr - merged.coverageBase})
 
 
 def sameCategoryThresholds(baseThresholds, altrThresholds):
